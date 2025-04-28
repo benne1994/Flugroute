@@ -37,7 +37,7 @@
     fullscreenButton: false
   });
 
-  // Kamera auf Deutschland ausrichten
+  // Kamera auf Anfangspunkt setzen
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(10.25, 50.125, 20000.0)
   });
@@ -52,12 +52,12 @@
     { lon: 10.5, lat: 50.25, alt: 0 }
   ];
 
-  // Punkte umrechnen
-  const positions = flightPath.map(p => 
+  // Umrechnen der Punkte
+  const positions = flightPath.map(p =>
     Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
   );
 
-  // Fluglinie als Entity hinzufügen
+  // Linie hinzufügen
   viewer.entities.add({
     polyline: {
       positions: positions,
