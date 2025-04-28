@@ -2,114 +2,60 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>3D Hybrid Satellit + Gelände + große 3D Fluglinie</title>
-  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>OpenStreetMap + 3D Fluglinie</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.112/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.112/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
-    body { margin: 0; overflow: hidden; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    html, body, #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      padding: 0;
+    }
   </style>
-  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
-  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
 </head>
 <body>
 
-<div id="map"></div>
+<div id="cesiumContainer"></div>
 
 <script>
-  const maptilerApiKey = 'r9nsDaWjLXRLFpq2ZVcC';
+  // Token (wird nicht mehr benutzt, weil wir freie OSM nehmen)
+  Cesium.Ion.defaultAccessToken = '';
 
-  const map = new maplibregl.Map({
-    container: 'map',
-    style: `https://api.maptiler.com/maps/hybrid/style.json?key=${maptilerApiKey}`,
-    center: [10.25, 50.125],
-    zoom: 11,
-    pitch: 60,
-    bearing: 0,
-    maxPitch: 85,
-    antialias: true
+  // Cesium Viewer starten mit OpenStreetMap
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    imageryProvider: new Cesium.OpenStreetMapImageryProvider({
+      url : 'https://a.tile.openstreetmap.org/'
+    }),
+    baseLayerPicker: false,
+    timeline: false,
+    animation: false,
+    sceneModePicker: false,
+    navigationHelpButton: false,
+    geocoder: false,
+    homeButton: false,
+    fullscreenButton: false
   });
 
-  let scene, camera, renderer, lineGroup;
+  // Kamera auf Scheuren setzen
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(6.5855, 50.4927, 3000.0)
+  });
 
-  map.on('load', () => {
-    // --- Gelände aktivieren ---
-    map.addSource('terrain', {
-      type: 'raster-dem',
-      tiles: [`https://api.maptiler.com/tiles/terrain-rgb/{z}/{x}/{y}.png?key=${maptilerApiKey}`],
-      tileSize: 512,
-      maxzoom: 15
-    });
-    map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
-
-    // --- Three.js Szene vorbereiten ---
-    scene = new THREE.Scene();
-    camera = new THREE.Camera();
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.autoClear = false;
-
-    // Gruppe für Skalierung
-    lineGroup = new THREE.Group();
-    scene.add(lineGroup);
-
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
-    const points = [];
-
-    // Mittelpunkt setzen
-    const centerLon = 10.25;
-    const centerLat = 50.125;
-    const R = 6371000; // Erdradius in Metern
-
-    function lonLatAltToVector3(lon, lat, alt) {
-      const dLon = (lon - centerLon) * (Math.PI / 180);
-      const dLat = (lat - centerLat) * (Math.PI / 180);
-      const x = R * dLon * Math.cos(centerLat * Math.PI / 180);
-      const y = R * dLat;
-      const z = alt;
-      return new THREE.Vector3(x, z, -y);
+  // Fluglinie 200m über Scheuren
+  viewer.entities.add({
+    polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArrayHeights([
+        6.5855, 50.4927, 200,
+        6.5955, 50.5027, 200
+      ]),
+      width: 4,
+      material: Cesium.Color.RED,
+      clampToGround: false
     }
-
-    const flightPath = [
-      { lon: 10.0, lat: 50.0, alt: 0 },
-      { lon: 10.1, lat: 50.05, alt: 500 },
-      { lon: 10.2, lat: 50.1, alt: 800 },
-      { lon: 10.3, lat: 50.15, alt: 600 },
-      { lon: 10.4, lat: 50.2, alt: 300 },
-      { lon: 10.5, lat: 50.25, alt: 0 }
-    ];
-
-    flightPath.forEach(p => {
-      points.push(lonLatAltToVector3(p.lon, p.lat, p.alt));
-    });
-
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, material);
-    lineGroup.add(line);
-
-    // Szene massiv skalieren
-    lineGroup.scale.set(500, 500, 500); // Skaliert X, Y, Z → damit endlich sichtbar!
-
-    // --- Three.js Layer sauber einbinden ---
-    const threeLayer = {
-      id: 'threejs-layer',
-      type: 'custom',
-      renderingMode: '3d',
-      onAdd: function (map, gl) {
-        renderer.setSize(map.getCanvas().width, map.getCanvas().height);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        this.renderer = renderer;
-      },
-      render: function (gl, matrix) {
-        const m = new THREE.Matrix4().fromArray(matrix);
-        camera.projectionMatrix = m;
-        renderer.resetState();
-        renderer.render(scene, camera);
-        map.triggerRepaint();
-      }
-    };
-
-    map.addLayer(threeLayer);
   });
+
 </script>
 
 </body>
