@@ -1,53 +1,69 @@
-<!DOCTYPE html>
-<html lang="de">
+<!DOCTYPE html><html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Cesium Globus mit lokaler Welttextur</title>
+  <meta charset="utf-8">
+  <title>Cesium Globus mit MapTiler Karte und Flugspur</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
-      margin: 0;
-      padding: 0;
       width: 100%;
       height: 100%;
+      margin: 0;
+      padding: 0;
       overflow: hidden;
-      background-color: black;
+      background: black;
     }
   </style>
 </head>
 <body>
-<div id="cesiumContainer"></div>
+<div id="cesiumContainer"></div><script>
+  // API-Key von dir
+  const maptilerApiKey = 'r9nsDaWjLXRLFpq2ZVcC';
 
-<script>
-// Cesium Basis setzen
-window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
+  // Cesium Basis setzen
+  window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
 
-// Globus-Textur definieren
-const viewer = new Cesium.Viewer('cesiumContainer', {
-  imageryProvider: new Cesium.SingleTileImageryProvider({
-    url: 'earthmap.jpg', // Lokales Bild im gleichen Ordner
-    rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0)
-  }),
-  terrainProvider: new Cesium.EllipsoidTerrainProvider(), // Nur Kugel, kein Gelände
-  baseLayerPicker: false,
-  geocoder: false,
-  homeButton: false,
-  sceneModePicker: false,
-  timeline: false,
-  animation: false,
-  navigationHelpButton: false,
-  infoBox: false,
-  selectionIndicator: false
-});
+  // Cesium Viewer mit MapTiler Karte
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    imageryProvider: new Cesium.UrlTemplateImageryProvider({
+      url: `https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=${maptilerApiKey}`,
+      credit: 'MapTiler'
+    }),
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+    baseLayerPicker: false,
+    geocoder: false,
+    homeButton: false,
+    sceneModePicker: false,
+    timeline: false,
+    animation: false,
+    navigationHelpButton: false,
+    infoBox: false,
+    selectionIndicator: false
+  });
 
-// Kamera auf Europa
-viewer.camera.setView({
-  destination: Cesium.Cartesian3.fromDegrees(10.0, 50.0, 15000000)
-});
+  // Kamera auf Deutschland setzen
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(10.25, 50.125, 15000000)
+  });
 
-console.log('Globus mit lokaler Weltkarte geladen');
-</script>
+  // Fluglinie definieren (wie bei deiner MapLibre Szene)
+  const flightPath = [
+    10.0, 50.0, 0,
+    10.1, 50.05, 500,
+    10.2, 50.1, 800,
+    10.3, 50.15, 600,
+    10.4, 50.2, 300,
+    10.5, 50.25, 0
+  ];
 
-</body>
+  const flightLine = viewer.entities.add({
+    polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArrayHeights(flightPath),
+      width: 5,
+      material: Cesium.Color.RED
+    }
+  });
+
+  console.log('Cesium Globus mit MapTiler Hybrid-Karte und Fluglinie geladen.');
+</script></body>
 </html>
