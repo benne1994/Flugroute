@@ -2,47 +2,52 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Cesium Globus mit freier Karte (Stamen Terrain)</title>
+  <title>Einfacher Cesium Globus (Neustart)</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
-      width: 100%;
-      height: 100%;
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      background: black;
+      background-color: black;
     }
   </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
+
 <script>
-  window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
+// Cesium Basis setzen
+window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
 
-  const viewer = new Cesium.Viewer('cesiumContainer', {
-    imageryProvider: new Cesium.UrlTemplateImageryProvider({
-      url: 'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
-      credit: 'Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL.'
-    }),
-    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: false,
-    sceneModePicker: false,
-    timeline: false,
-    animation: false,
-    navigationHelpButton: false,
-    infoBox: false,
-    selectionIndicator: false
-  });
+// Einfachen Viewer erstellen
+const viewer = new Cesium.Viewer('cesiumContainer', {
+  imageryProvider: new Cesium.UrlTemplateImageryProvider({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    credit: 'Esri, Earthstar Geographics'
+  }),
+  terrainProvider: new Cesium.EllipsoidTerrainProvider(), // Nur Kugel, kein Höhenmodell
+  baseLayerPicker: false,
+  geocoder: false,
+  homeButton: false,
+  sceneModePicker: false,
+  timeline: false,
+  animation: false,
+  navigationHelpButton: false,
+  infoBox: false,
+  selectionIndicator: false
+});
 
-  viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(10, 50, 15000000)
-  });
+// Kamera auf Europa
+viewer.camera.setView({
+  destination: Cesium.Cartesian3.fromDegrees(10.0, 50.0, 15000000)
+});
 
-  console.log('Freie Weltkarte von Stamen Design geladen!');
+console.log('Minimaler Globus geladen');
 </script>
+
 </body>
 </html>
