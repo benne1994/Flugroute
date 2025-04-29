@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Einfacher Cesium Globus (Neustart)</title>
+  <title>Cesium Globus mit lokaler Welttextur</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -23,13 +23,13 @@
 // Cesium Basis setzen
 window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
 
-// Einfachen Viewer erstellen
+// Globus-Textur definieren
 const viewer = new Cesium.Viewer('cesiumContainer', {
-  imageryProvider: new Cesium.UrlTemplateImageryProvider({
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    credit: 'Esri, Earthstar Geographics'
+  imageryProvider: new Cesium.SingleTileImageryProvider({
+    url: 'earthmap.jpg', // Lokales Bild im gleichen Ordner
+    rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0)
   }),
-  terrainProvider: new Cesium.EllipsoidTerrainProvider(), // Nur Kugel, kein Höhenmodell
+  terrainProvider: new Cesium.EllipsoidTerrainProvider(), // Nur Kugel, kein Gelände
   baseLayerPicker: false,
   geocoder: false,
   homeButton: false,
@@ -46,7 +46,7 @@ viewer.camera.setView({
   destination: Cesium.Cartesian3.fromDegrees(10.0, 50.0, 15000000)
 });
 
-console.log('Minimaler Globus geladen');
+console.log('Globus mit lokaler Weltkarte geladen');
 </script>
 
 </body>
