@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Cesium Globe mit freier Karte</title>
+  <title>Cesium Globus mit Ion Karten</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -19,15 +19,13 @@
 <body>
 <div id="cesiumContainer"></div>
 <script>
-  window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
+  // API-Key für Cesium Ion
+  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjMzRhMTI1OS00MzY2LTQ3OTctYWU2Yi0xZWJmMjM2MWExOTgiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MDc3Nzl9.tesFCoEm5NUg-9n6-g-ZvQ-5BntJ4r3yHf31v7bNGcc';
 
+  // Cesium Viewer starten mit Ion World Imagery und Gelände
   const viewer = new Cesium.Viewer('cesiumContainer', {
-    imageryProvider: new Cesium.UrlTemplateImageryProvider({
-      url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      subdomains: ['a', 'b', 'c', 'd'],
-      credit: '© CartoDB'
-    }),
-    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+    terrainProvider: Cesium.createWorldTerrain(),
+    imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }),
     baseLayerPicker: false,
     geocoder: false,
     homeButton: false,
@@ -39,11 +37,12 @@
     selectionIndicator: false
   });
 
+  // Kamera auf Europa setzen
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(10, 50, 15000000)
+    destination: Cesium.Cartesian3.fromDegrees(10.0, 50.0, 15000000)
   });
 
-  console.log("Freie Weltkarte geladen (CartoDB).");
+  console.log('Cesium Globus mit Ion-Karte und Gelände geladen');
 </script>
 </body>
 </html>
