@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>Cesium Globus mit Flugspur</title>
+  <title>Cesium Globus mit Flugspur und Gelände</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
   <style>
@@ -16,8 +16,7 @@
 </head>
 <body>
 <div id="cesiumContainer"></div><script>
-// Falls du einen eigenen API-Key für World Terrain hast:
-// Cesium.Ion.defaultAccessToken = 'DEIN_CESIUM_ION_TOKEN';
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2YjJiOGRkMS1jZDAyLTRlODMtOTQ4ZC0zMmVhMTc1NDJkZGMiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MjkwNzF9.H8DsMQpWC-UkdAsvMoYdlaD6DB-m0m_TriSZgeDHocY';
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
   sceneMode: Cesium.SceneMode.SCENE3D,
