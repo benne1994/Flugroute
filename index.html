@@ -1,8 +1,7 @@
-<!DOCTYPE html>
-<html lang="de">
+<!DOCTYPE html><html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Cesium Globe mit freien Karten</title>
+  <title>Cesium Globe Test - GitHub Pages</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -12,38 +11,16 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: #000;
+      background: black;
     }
   </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
 <script>
-  window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
+  window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';const viewer = new Cesium.Viewer('cesiumContainer', { imageryProvider: new Cesium.UrlTemplateImageryProvider({ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: ['a', 'b', 'c'], credit: 'OpenStreetMap contributors' }), terrainProvider: new Cesium.EllipsoidTerrainProvider(), baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false, timeline: false, animation: false, navigationHelpButton: false, infoBox: false, selectionIndicator: false });
 
-  const viewer = new Cesium.Viewer('cesiumContainer', {
-    imageryProvider: new Cesium.UrlTemplateImageryProvider({
-      url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      subdomains: ['a', 'b', 'c', 'd'],
-      credit: '© CartoDB'
-    }),
-    terrainProvider: new Cesium.EllipsoidTerrainProvider(), 
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: false,
-    sceneModePicker: false,
-    timeline: false,
-    animation: false,
-    navigationHelpButton: false,
-    infoBox: false,
-    selectionIndicator: false
-  });
+viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(10, 50, 15000000) }); </script>
 
-  viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(10, 50, 15000000)
-  });
-
-  console.log("CesiumJS-Viewer mit CartoDB-Tiles läuft.");
-</script>
 </body>
 </html>
