@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Cesium Globus mit Ion Karten</title>
+  <title>Cesium Globus mit freier Karte (Stamen Terrain)</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -19,13 +19,14 @@
 <body>
 <div id="cesiumContainer"></div>
 <script>
-  // API-Key für Cesium Ion
-  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjMzRhMTI1OS00MzY2LTQ3OTctYWU2Yi0xZWJmMjM2MWExOTgiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MDc3Nzl9.tesFCoEm5NUg-9n6-g-ZvQ-5BntJ4r3yHf31v7bNGcc';
+  window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
 
-  // Cesium Viewer starten mit Ion World Imagery und Gelände
   const viewer = new Cesium.Viewer('cesiumContainer', {
-    terrainProvider: Cesium.createWorldTerrain(),
-    imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }),
+    imageryProvider: new Cesium.UrlTemplateImageryProvider({
+      url: 'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
+      credit: 'Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL.'
+    }),
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     baseLayerPicker: false,
     geocoder: false,
     homeButton: false,
@@ -37,12 +38,11 @@
     selectionIndicator: false
   });
 
-  // Kamera auf Europa setzen
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(10.0, 50.0, 15000000)
+    destination: Cesium.Cartesian3.fromDegrees(10, 50, 15000000)
   });
 
-  console.log('Cesium Globus mit Ion-Karte und Gelände geladen');
+  console.log('Freie Weltkarte von Stamen Design geladen!');
 </script>
 </body>
 </html>
