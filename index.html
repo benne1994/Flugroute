@@ -1,55 +1,12 @@
-<!DOCTYPE html><html lang="de">
-<head>
-  <meta charset="utf-8">
-  <title>Cesium Globus mit Flugspur und Gelände</title>
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
-  <style>
-    html, body, #cesiumContainer {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-  </style>
-</head>
-<body>
-<div id="cesiumContainer"></div><script>
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2YjJiOGRkMS1jZDAyLTRlODMtOTQ4ZC0zMmVhMTc1NDJkZGMiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MjkwNzF9.H8DsMQpWC-UkdAsvMoYdlaD6DB-m0m_TriSZgeDHocY';
+document.getElementById('switchView').onclick = async () => {
+  is3D = !is3D;
+  viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
+  document.getElementById('switchView').textContent = is3D ? 'Wechsel zu 2D' : 'Wechsel zu 3D';
 
-const viewer = new Cesium.Viewer('cesiumContainer', {
-  sceneMode: Cesium.SceneMode.SCENE3D,
-  baseLayerPicker: true,
-  terrainProvider: Cesium.createWorldTerrain()
-});
-
-viewer.scene.globe.depthTestAgainstTerrain = true;
-
-// Kamera auf Deutschland zoomen
-viewer.camera.flyTo({
-  destination: Cesium.Cartesian3.fromDegrees(10.25, 50.125, 1500000.0)
-});
-
-// Beispiel-Flugspur (mit Höhe)
-const flightPositions = Cesium.Cartesian3.fromDegreesArrayHeights([
-  7.0, 50.0, 0,
-  7.5, 50.1, 500,
-  8.0, 50.2, 1000,
-  9.0, 50.3, 800,
-  10.0, 50.4, 300,
-  11.0, 50.5, 100,
-  12.0, 50.6, 0
-]);
-
-viewer.entities.add({
-  name: "Flugspur",
-  polyline: {
-    positions: flightPositions,
-    width: 4,
-    material: Cesium.Color.RED.withAlpha(0.9),
-    clampToGround: false
+  if (is3D) {
+    // Aktiviere das Terrain zuverlässig (async empfohlen)
+    const terrain = await Cesium.createWorldTerrainAsync();
+    viewer.terrainProvider = terrain;
+    viewer.scene.requestRenderMode = false;
   }
-});
-</script></body>
-</html>
+};
