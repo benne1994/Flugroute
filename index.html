@@ -82,16 +82,14 @@ let mainChart;
 let cesiumEntity = null;
 
 let is3D = true;
-document.getElementById('switchView').onclick = async () => {
+document.getElementById('switchView').onclick = () => {
   is3D = !is3D;
   viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
   document.getElementById('switchView').textContent = is3D ? 'Wechsel zu 2D' : 'Wechsel zu 3D';
 
   if (is3D) {
-    // Aktiviere das Terrain zuverlässig (async empfohlen)
-    const terrain = await Cesium.createWorldTerrainAsync();
-    viewer.terrainProvider = terrain;
-    viewer.scene.requestRenderMode = false;
+    viewer.terrainProvider = Cesium.createWorldTerrain();
+    viewer.scene.requestRenderMode = false; // Dauer-Rendering für Terrain
   }
 };
 
