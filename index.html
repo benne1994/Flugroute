@@ -1,5 +1,4 @@
-<!DOCTYPE html><html lang="de"><head>
-  <meta charset="utf-8">
+<!DOCTYPE html><html lang="de"><head>  <meta charset="utf-8">
   <title>Flugspur App mit Höhen-Offset</title>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -8,70 +7,34 @@
   <style>
     html, body { margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; background: #f0f0f0; overflow: hidden; }
     #cesiumContainer { position: absolute; top: 0px; left: 0; width: 100%; height: 70%; }
-    #chartContainer { position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: #D3D3D3; padding: 10px; box-sizing: border-box; }
-  
-    #mainChart { width: 100%; height: 100%; }
-    button, select, input[type="range"] { touch-action: manipulation;
-    }
-
-#buttonBar {
-  position: fixed;
-  bottom: 1%;
-  left: 10px;
-  right: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: flex-start;
-  z-index: 2000;
+    #chartContainer { position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: #D3D3D3; padding: 10px; box-sizing: border-box; }#mainChart { width: 100%; height: 100%; }
+button, select, input[type="range"] { touch-action: manipulation;
 }
 
-#buttonBar > * {
-  background: #333;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 20px;
-  font-size: 14px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-  touch-action: manipulation;
-}
+#buttonBar { position: fixed; bottom: 1%; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: flex-start; z-index: 2000; }
 
-#trailSlider {
-  width: 100px;
-}
+#buttonBar > * { background: #333; color: white; padding: 10px 15px; border: none; border-radius: 20px; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); touch-action: manipulation; }
 
-#fileInput {
-  display: none;
-}
-    
-    
-.cesium-button {
-  transform: scale(2);
-  transform-origin: top left;
-  margin-bottom: 12px; /* zusätzlicher Abstand zwischen Buttons */
-}
+#trailSlider { width: 100px; }
 
-.cesium-viewer-toolbar {
-  top: 30px !important;
-  right: 30px !important;
-  display: flex;
-  flex-direction: column;
-  gap: 12px; /* moderner Abstand zwischen Buttons */
-}
-    
-    
+#fileInput { display: none; }
+
+.cesium-button { transform: scale(2); transform-origin: top left; margin-bottom: 12px; /* zusätzlicher Abstand zwischen Buttons */ }
+
+.cesium-viewer-toolbar { top: 30px !important; right: 30px !important; display: flex; flex-direction: column; gap: 12px; /* moderner Abstand zwischen Buttons */ }
+
+#infoBox { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px 12px; border-radius: 8px; font-size: 14px; z-index: 1000; pointer-events: none;
+
+} #infoBox strong { font-weight: bold; }
 
   </style>
-</head><body>
-
-<div id="buttonBar">
+</head><body><div id="buttonBar">
   <button id="switchView">Wechsel zu 3D</button>
   <button id="openFile">Datei auswählen</button>
   <button id="startBtn">Start</button>
   <button id="pauseBtn">Pause</button>
   <button id="rewindBtn">Zurück</button>
-  <input type="range" id="trailSlider" min="10" max="300" value="60">
+  <input type="range" id="trailSlider" min="10" max="1000" value="80">
   <select id="speedSelect">
     <option value="1">1x</option>
     <option value="2">2x</option>
@@ -82,13 +45,17 @@
 </div>
 <input type="file" id="fileInput" accept=".kml">
 <div id="cesiumContainer"></div>
-<div id="chartContainer"><canvas id="mainChart"></canvas></div>
-
-<script>
+<div id="infoBox">
+  <div><strong>Geschwindigkeit:</strong> <span id="infoSpeed">–</span> km/h</div>
+  <div><strong>Höhe (NN):</strong> <span id="infoAlt">–</span> m</div>
+  <div><strong>Höhe über Start:</strong> <span id="infoRelAlt">–</span> m</div>
+<div><strong>Steigrate:</strong> <span id="infoVario">–</span> m/s</div>
+</div>
+<div id="chartContainer"><canvas id="mainChart"></canvas></div><script>
 Cesium.Ion.defaultAccessToken  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
-const altitudeOffset = 36;
-
+let startAltitude = null;
+const altitudeOffset = 38;
 const viewer = new Cesium.Viewer('cesiumContainer', {
   sceneMode: Cesium.SceneMode.SCENE2D,
   animation: false,
@@ -126,7 +93,19 @@ const trailPositions = new Cesium.CallbackProperty(() => {
   );
 }, false);
 
-viewer.entities.add({ polyline: { positions: trailPositions, width: 3, material: Cesium.Color.BLUE.withAlpha(0.9) } });
+viewer.entities.add({
+  polyline: {
+    positions: trailPositions,
+    width: 14,
+    material: new Cesium.PolylineGlowMaterialProperty({
+      glowPower: 0.2,          // wie stark es leuchtet (0.0–1.0)
+      taperPower: 1.0,         // an den Enden schmaler
+      color: Cesium.Color.BLUE.withAlpha(0.9)
+    })
+  }
+});
+
+
 
 
 async function updateMovingPoint(p) {
@@ -157,26 +136,58 @@ async function updateMovingPoint(p) {
 
   const ground = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, groundHeight);
 
-  // Neue Bodenlinie hinzufügen
+  // Neue Bodenlinie erstellen
   const newLine = viewer.entities.add({
     polyline: {
       positions: [pos, ground],
       width: 2,
-      material: Cesium.Color.GRAY.withAlpha(0.5)
+      material: Cesium.Color.GRAY.withAlpha(1.0)
     }
   });
 
-  // Neue Linie in Liste einfügen
   verticalLineEntities.push(newLine);
 
-  // Zu viele Linien? Älteste(n) löschen
-  while (verticalLineEntities.length > 5) {
+  // Älteste Linien entfernen
+  while (verticalLineEntities.length > 30) {
     const old = verticalLineEntities.shift();
-    if (viewer.entities.contains(old)) {
-      viewer.entities.remove(old);
-    }
+    viewer.entities.remove(old);
   }
+
+  // Transparenz je nach Alter
+  verticalLineEntities.forEach((entity, i) => {
+    const alpha = (i + 1) / verticalLineEntities.length;
+    entity.polyline.material = Cesium.Color.GRAY.withAlpha(alpha);
+  });
+
+  // Geschwindigkeitsanzeige + Höhenanzeige aktualisieren
+  let speedKmh = 0;
+  if (animationIndex > 0) {
+    const prev = fullCoords[animationIndex - 1];
+    const dx = p.lon - prev.lon;
+    const dy = p.lat - prev.lat;
+    const dist = Math.sqrt(dx * dx + dy * dy) * 111320;
+    const dt = p.seconds - prev.seconds;
+    if (dt > 0) speedKmh = (dist / dt) * 3.6;
+  }
+
+  if (startAltitude === null) startAltitude = p.alt;
+
+  let climbRate = 0;
+if (animationIndex > 0) {
+  const prev = fullCoords[animationIndex - 1];
+  const dt = p.seconds - prev.seconds;
+  if (dt > 0) climbRate = (p.alt - prev.alt) / dt;
 }
+
+document.getElementById('infoSpeed').textContent = speedKmh.toFixed(1);
+document.getElementById('infoAlt').textContent = p.alt.toFixed(1);
+document.getElementById('infoRelAlt').textContent = (p.alt - startAltitude).toFixed(1);
+document.getElementById('infoVario').textContent = climbRate.toFixed(1);}
+
+
+
+
+
 function enableFollow(p) {
   const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
   const offset = new Cesium.Cartesian3(0, -1000, 500);
@@ -203,8 +214,11 @@ async function startAnimation() {
     }
     animationIndex++;
     await updateMovingPoint(fullCoords[animationIndex]);
-  }, 1000 / speedFactor);
+    updateChartMarker(); // <-- Marker bei jedem Schritt aktualisieren
+  }, 1000 / (speedFactor * 10));
 } 
+
+
 
 function createChart() {
   const ctx = document.getElementById('mainChart').getContext('2d');
@@ -218,6 +232,7 @@ function createChart() {
     const dt = fullCoords[i].seconds - fullCoords[i - 1].seconds;
     speeds.push(dt > 0 ? (dist/dt)*3.6 : 0);
   }
+
   if (mainChart) mainChart.destroy();
   mainChart = new Chart(ctx, {
     type: 'line',
@@ -231,15 +246,76 @@ function createChart() {
     options: {
       responsive: true,
       animation: false,
-      plugins: { legend: { display: true } },
+      plugins: {
+        legend: { display: true },
+        annotation: {
+          annotations: {
+            currentLine: {
+              type: 'line',
+              xMin: seconds[0],
+              xMax: seconds[0],
+              borderColor: 'red',
+              borderWidth: 2,
+              label: {
+                display: true,
+                content: ctx => {
+                  const sec = fullCoords[animationIndex]?.seconds ?? 0;
+                  const h = Math.floor(sec / 3600);
+                  const m = Math.floor((sec % 3600) / 60);
+                  const s = Math.floor(sec % 60);
+                  return h > 0
+                    ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+                    : `${m}:${s.toString().padStart(2, '0')}`;
+                },
+                backgroundColor: 'red',
+                color: 'white',
+                font: { weight: 'bold' },
+                position: 'start'
+              }
+            }
+          }
+        }
+      },
+      onClick: async (event) => {
+        const points = mainChart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, false);
+        if (points.length > 0) {
+          const index = points[0].index;
+          animationIndex = index;
+          await updateMovingPoint(fullCoords[animationIndex]);
+          updateChartMarker();
+        }
+      },
       scales: {
-        x: { title: { display: true, text: 'Zeit (s)' } },
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Zeit' },
+          ticks: {
+            callback: function(value) {
+              const h = Math.floor(value / 3600);
+              const m = Math.floor((value % 3600) / 60);
+              const s = Math.floor(value % 60);
+              return h > 0
+                ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+                : `${m}:${s.toString().padStart(2, '0')}`;
+            }
+          }
+        },
         y1: { type: 'linear', position: 'left', title: { display: true, text: 'Höhe (m)' } },
         y2: { type: 'linear', position: 'right', title: { display: true, text: 'km/h' }, grid: { drawOnChartArea: false } }
       }
     }
   });
 }
+
+function updateChartMarker() {
+  if (!mainChart) return;
+  const seconds = fullCoords[animationIndex]?.seconds ?? 0;
+  const annotation = mainChart.options.plugins.annotation.annotations.currentLine;
+  annotation.xMin = annotation.xMax = seconds;
+  mainChart.update('none');
+}
+
+
 
 document.getElementById('switchView').onclick = () => {
   is3D = !is3D;
@@ -260,10 +336,30 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
         const [h,m,s] = line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
         currentTime = h*3600 + m*60 + s;
       }
-      if (line.includes('<coordinates>')) {
-        const [lon, lat, alt] = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim().split(',').map(Number);
-        if (currentTime !== null) fullCoords.push({ seconds: currentTime, lon, lat, alt });
+ 
+ 
+ if (line.includes('<coordinates>')) {
+  const [lon, lat, alt] = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim().split(',').map(Number);
+  if (currentTime !== null) {
+    if (fullCoords.length > 0) {
+      const last = fullCoords[fullCoords.length - 1];
+      const steps = 10; // Anzahl der Zwischenpunkte
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        fullCoords.push({
+          seconds: last.seconds + (currentTime - last.seconds) * t,
+          lon: last.lon + (lon - last.lon) * t,
+          lat: last.lat + (lat - last.lat) * t,
+          alt: last.alt + (alt - last.alt) * t
+        });
       }
+    }
+    fullCoords.push({ seconds: currentTime, lon, lat, alt });
+  }
+}
+ 
+ 
+ 
     }
     if (fullCoords.length > 0) {
       animationIndex = 0;
@@ -281,13 +377,20 @@ document.getElementById('rewindBtn').onclick = () => {
   updateMovingPoint(fullCoords[0]);
 };
 document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
-document.getElementById('speedSelect').onchange = e => speedFactor = parseInt(e.target.value);
+document.getElementById('speedSelect').onchange = async e => {
+  speedFactor = parseInt(e.target.value);
+  if (animationInterval) {
+    clearInterval(animationInterval);
+    await startAnimation(); // direkt neu starten mit neuer Geschwindigkeit
+  }
+};
 
 document.getElementById('toggleFollow').onclick = () => {
   followEnabled = !followEnabled;
   document.getElementById('toggleFollow').textContent = followEnabled ? 'Kamera folgt: AN' : 'Kamera folgt: AUS';
   if (!followEnabled) stopFollow();
   else updateMovingPoint(fullCoords[animationIndex]);
+updateChartMarker();
 };
-</script>
-</body></html>
+</script></body></html>
+
