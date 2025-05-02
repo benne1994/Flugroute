@@ -1,188 +1,200 @@
-<!DOCTYPE html><html lang="de">  <head>  
-  <meta charset="utf-8">  
-  <title>Flugspur App mit Cesium (2D/3D)</title>  
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />  
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>  
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>  
-  <style>  
-    html, body {  
-      margin: 0;  
-      padding: 0;  
-      height: 100%;  
-      width: 100%;  
-      font-family: sans-serif;  
-      background: #f0f0f0;  
-      overflow: hidden;  
-    }  
-    #cesiumContainer {  
-      position: absolute;  
-      top: 0;  
-      left: 0;  
-      width: 100%;  
-      height: 75%;  
-    }  
-    #chartContainer {  
-      position: absolute;  
-      bottom: 0;  
-      left: 0;  
-      width: 100%;  
-      height: 25%;  
-      background: #fff;  
-      padding: 10px;  
-      box-sizing: border-box;  
-    }  
-    #mainChart {  
-      width: 100%;  
-      height: 100%;  
-    }  
-    #switchView, #openFile {  
-      position: fixed;  
-      top: 10px;  
-      z-index: 2000;  
-      background: #333;  
-      color: white;  
-      padding: 10px 20px;  
-      border: none;  
-      border-radius: 10px;  
-      cursor: pointer;  
-      font-size: 14px;  
-      box-shadow: 0 2px 5px rgba(0,0,0,0.4);  
-    }  
-    #switchView { left: 10px; }  
-    #openFile { left: 140px; }  
-    #fileInput { display: none; }  
-  </style>  
-</head>  
-<body><button id="switchView">Wechsel zu 2D</button> <button id="openFile">Datei auswählen</button> <input type="file" id="fileInput" accept=".kml">  <div id="cesiumContainer"></div>  
-<div id="chartContainer">  
-  <canvas id="mainChart"></canvas>  </div><script>  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
+<!DOCTYPE html><html lang="de"><head>
+  <meta charset="utf-8">
+  <title>Flugspur App mit Höhen-Offset</title>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; background: #f0f0f0; overflow: hidden; }
+    #cesiumContainer { position: absolute; top: 0; left: 0; width: 100%; height: 75%; }
+    #chartContainer { position: absolute; bottom: 0; left: 0; width: 100%; height: 25%; background: #fff; padding: 10px; box-sizing: border-box; }
+    #mainChart { width: 100%; height: 100%; }
+    button, select, input[type="range"] {
+      position: fixed; top: 60px; z-index: 2000; background: #333; color: white; padding: 10px 15px; border: none;
+      border-radius: 10px; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); touch-action: manipulation;
+    }
+    #switchView { left: 10px; }
+    #openFile { left: 130px; }
+    #startBtn { left: 250px; }
+    #pauseBtn { left: 350px; }
+    #rewindBtn { left: 450px; }
+    #trailSlider { left: 550px; width: 100px; }
+    #speedSelect { left: 660px; }
+    #toggleFollow { left: 740px; }
+    #fileInput { display: none; }
+  </style>
+</head><body>
+
+<button id="switchView">Wechsel zu 3D</button>
+<button id="openFile">Datei auswählen</button>
+<button id="startBtn">Start</button>
+<button id="pauseBtn">Pause</button>
+<button id="rewindBtn">Zurück</button>
+<input type="range" id="trailSlider" min="10" max="300" value="60">
+<select id="speedSelect">
+  <option value="1">1x</option>
+  <option value="2">2x</option>
+  <option value="4">4x</option>
+  <option value="8">8x</option>
+</select>
+<button id="toggleFollow">Kamera folgt: AN</button>
+<input type="file" id="fileInput" accept=".kml">
+
+<div id="cesiumContainer"></div>
+<div id="chartContainer"><canvas id="mainChart"></canvas></div>
+
+<script>
+Cesium.Ion.defaultAccessToken  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
+
+const altitudeOffset = 34;
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
-sceneMode: Cesium.SceneMode.SCENE3D,
-baseLayerPicker: true,
-animation: false,
-timeline: false,
-terrainProvider: undefined
+  sceneMode: Cesium.SceneMode.SCENE2D,
+  baseLayerPicker: true,
+  animation: false,
+  timeline: false,
+  terrainProvider: undefined
 });
 
-let fullCoords = [];
-let mainChart;
-let cesiumEntity = null;
+let fullCoords = [], animationIndex = 0, animationInterval = null;
+let mainChart, is3D = false, speedFactor = 1, trailSeconds = 60, followEnabled = true;
+let movingPointEntity = null, followTransform;
 
-// Umschalten zwischen 3D und 2D
-let is3D = true;
-document.getElementById('switchView').onclick = () => {
-is3D = !is3D;
-viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
-document.getElementById('switchView').textContent = is3D ? 'Wechsel zu 2D' : 'Wechsel zu 3D';
-};
+const trailPositions = new Cesium.CallbackProperty(() => {
+  const t = fullCoords[animationIndex]?.seconds ?? 0;
+  const trail = fullCoords.filter(p => p.seconds >= t - trailSeconds && p.seconds <= t);
+  return Cesium.Cartesian3.fromDegreesArrayHeights(
+    trail.flatMap(p => [p.lon, p.lat, p.alt + altitudeOffset])
+  );
+}, false);
 
-// Datei auswählen sichtbar machen
-document.getElementById('openFile').onclick = () => {
-document.getElementById('fileInput').click();
-};
+viewer.entities.add({ polyline: { positions: trailPositions, width: 3, material: Cesium.Color.RED.withAlpha(0.9) } });
 
-document.getElementById('fileInput').addEventListener('change', function(event) {
-const file = event.target.files[0];
-if (!file) return;
-const reader = new FileReader();
-reader.onload = function(e) {
-const text = e.target.result;
-const lines = text.split(/\r?\n/);
-fullCoords = [];
-let currentTime = null;
-for (let line of lines) {
-line = line.trim();
-if (line.startsWith('<name>')) {
-const timeText = line.replace('<name>', '').replace('</name>', '').trim();
-const [hours, minutes, seconds] = timeText.split(':').map(Number);
-currentTime = hours * 3600 + minutes * 60 + seconds;
+function updateMovingPoint(p) {
+  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
+  if (!movingPointEntity) {
+    movingPointEntity = viewer.entities.add({
+      position: pos,
+      point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 }
+    });
+    if (followEnabled) enableFollow(p);
+  } else {
+    movingPointEntity.position = pos;
+    if (followEnabled) updateFollow(p);
+  }
 }
-if (line.includes('<coordinates>')) {
-const coordsText = line.substring(line.indexOf('>') + 1, line.indexOf('</coordinates>')).trim();
-const [lon, lat, alt] = coordsText.split(',').map(Number);
-if (currentTime !== null) {
-fullCoords.push({ seconds: currentTime, lon: lon, lat: lat, alt: alt });
-currentTime = null;
-}
-}
-}
-if (fullCoords.length > 0) {
-updateCesiumFlightPath(fullCoords);
-createChart();
-}
-};
-reader.readAsText(file);
-});
 
-function updateCesiumFlightPath(coords) {
-if (cesiumEntity) viewer.entities.remove(cesiumEntity);
-const flat = [];
-coords.forEach(p => flat.push(p.lon, p.lat, p.alt));
-cesiumEntity = viewer.entities.add({
-polyline: {
-positions: Cesium.Cartesian3.fromDegreesArrayHeights(flat),
-width: 3,
-material: Cesium.Color.RED.withAlpha(0.9)
+function enableFollow(p) {
+  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
+  const offset = new Cesium.Cartesian3(0, -1000, 500);
+  followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+  viewer.camera.lookAtTransform(followTransform, offset);
 }
-});
-viewer.camera.flyTo({
-destination: Cesium.Cartesian3.fromDegrees(coords[0].lon, coords[0].lat, 2000.0)
-});
+
+function updateFollow(p) {
+  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
+  followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+  viewer.camera.lookAtTransform(followTransform, new Cesium.Cartesian3(0, -1000, 500));
+}
+
+function stopFollow() {
+  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+}
+
+function startAnimation() {
+  clearInterval(animationInterval);
+  animationInterval = setInterval(() => {
+    if (animationIndex >= fullCoords.length - 1) {
+      clearInterval(animationInterval);
+      return;
+    }
+    animationIndex++;
+    updateMovingPoint(fullCoords[animationIndex]);
+  }, 1000 / speedFactor);
 }
 
 function createChart() {
-const ctx = document.getElementById('mainChart').getContext('2d');
-const seconds = fullCoords.map(p => p.seconds);
-const altitude = fullCoords.map(p => p.alt);
-const speeds = [0];
-for (let i = 1; i < fullCoords.length; i++) {
-const dx = fullCoords[i].lon - fullCoords[i - 1].lon;
-const dy = fullCoords[i].lat - fullCoords[i - 1].lat;
-const distance = Math.sqrt(dx * dx + dy * dy) * 111320;
-const dt = fullCoords[i].seconds - fullCoords[i - 1].seconds;
-speeds.push(dt > 0 ? (distance / dt) * 3.6 : 0);
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  const seconds = fullCoords.map(p => p.seconds);
+  const alt = fullCoords.map(p => p.alt);
+  const speeds = [0];
+  for (let i = 1; i < fullCoords.length; i++) {
+    const dx = fullCoords[i].lon - fullCoords[i - 1].lon;
+    const dy = fullCoords[i].lat - fullCoords[i - 1].lat;
+    const dist = Math.sqrt(dx*dx + dy*dy) * 111320;
+    const dt = fullCoords[i].seconds - fullCoords[i - 1].seconds;
+    speeds.push(dt > 0 ? (dist/dt)*3.6 : 0);
+  }
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: seconds,
+      datasets: [
+        { label: 'Höhe (m)', data: alt, borderColor: 'blue', yAxisID: 'y1', pointRadius: 0, tension: 0.2 },
+        { label: 'Geschwindigkeit (km/h)', data: speeds, borderColor: 'green', yAxisID: 'y2', pointRadius: 0, tension: 0.2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: { legend: { display: true } },
+      scales: {
+        x: { title: { display: true, text: 'Zeit (s)' } },
+        y1: { type: 'linear', position: 'left', title: { display: true, text: 'Höhe (m)' } },
+        y2: { type: 'linear', position: 'right', title: { display: true, text: 'km/h' }, grid: { drawOnChartArea: false } }
+      }
+    }
+  });
 }
-if (mainChart) mainChart.destroy();
-mainChart = new Chart(ctx, {
-type: 'line',
-data: {
-labels: seconds,
-datasets: [
-{ label: 'Höhe (m)', data: altitude, borderColor: 'blue', yAxisID: 'y1', pointRadius: 0, tension: 0.2 },
-{ label: 'Geschwindigkeit (km/h)', data: speeds, borderColor: 'green', yAxisID: 'y2', pointRadius: 0, tension: 0.2 }
-]
-},
-options: {
-responsive: true,
-animation: false,
-plugins: {
-legend: { display: true },
-annotation: {
-annotations: {
-line: {
-type: 'line',
-borderColor: 'red',
-borderWidth: 2,
-scaleID: 'x',
-value: seconds[0],
-draggable: true,
-onDragEnd: function(e) {
-const second = e.chart.options.plugins.annotation.annotations.line.value;
-}
-}
-}
-}
-},
-scales: {
-x: { title: { display: true, text: 'Zeit (s)' }, ticks: { stepSize: 10 } },
-y1: { type: 'linear', position: 'left', title: { display: true, text: 'Höhe (m)' } },
-y2: { type: 'linear', position: 'right', title: { display: true, text: 'km/h' }, grid: { drawOnChartArea: false } }
-}
-}
-});
-}
-</script></body>
 
-</html>
+document.getElementById('switchView').onclick = () => {
+  is3D = !is3D;
+  viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
+  document.getElementById('switchView').textContent = is3D ? 'Wechsel zu 2D' : 'Wechsel zu 3D';
+  if (is3D) Cesium.createWorldTerrainAsync().then(t => viewer.terrainProvider = t);
+};
+
+document.getElementById('openFile').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').addEventListener('change', function(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader(); reader.onload = function(e) {
+    const lines = e.target.result.split(/\r?\n/);
+    fullCoords = []; let currentTime = null;
+    for (let line of lines) {
+      line = line.trim();
+      if (line.startsWith('<name>')) {
+        const [h,m,s] = line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
+        currentTime = h*3600 + m*60 + s;
+      }
+      if (line.includes('<coordinates>')) {
+        const [lon, lat, alt] = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim().split(',').map(Number);
+        if (currentTime !== null) fullCoords.push({ seconds: currentTime, lon, lat, alt });
+      }
+    }
+    if (fullCoords.length > 0) {
+      animationIndex = 0;
+      updateMovingPoint(fullCoords[0]);
+      createChart();
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('startBtn').onclick = startAnimation;
+document.getElementById('pauseBtn').onclick = () => clearInterval(animationInterval);
+document.getElementById('rewindBtn').onclick = () => {
+  animationIndex = 0;
+  updateMovingPoint(fullCoords[0]);
+};
+document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
+document.getElementById('speedSelect').onchange = e => speedFactor = parseInt(e.target.value);
+document.getElementById('toggleFollow').onclick = () => {
+  followEnabled = !followEnabled;
+  document.getElementById('toggleFollow').textContent = followEnabled ? 'Kamera folgt: AN' : 'Kamera folgt: AUS';
+  if (!followEnabled) stopFollow();
+  else updateMovingPoint(fullCoords[animationIndex]);
+};
+</script>
+</body></html>
