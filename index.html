@@ -7,53 +7,100 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; background: #f0f0f0; overflow: hidden; }
-    #cesiumContainer { position: absolute; top: 0; left: 0; width: 100%; height: 75%; }
-    #chartContainer { position: absolute; bottom: 0; left: 0; width: 100%; height: 25%; background: #fff; padding: 10px; box-sizing: border-box; }
+    #cesiumContainer { position: absolute; top: 0px; left: 0; width: 100%; height: 70%; }
+    #chartContainer { position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: #D3D3D3; padding: 10px; box-sizing: border-box; }
+  
     #mainChart { width: 100%; height: 100%; }
-    button, select, input[type="range"] {
-      position: fixed; top: 60px; z-index: 2000; background: #333; color: white; padding: 10px 15px; border: none;
-      border-radius: 10px; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); touch-action: manipulation;
+    button, select, input[type="range"] { touch-action: manipulation;
     }
-    #switchView { left: 10px; }
-    #openFile { left: 130px; }
-    #startBtn { left: 250px; }
-    #pauseBtn { left: 350px; }
-    #rewindBtn { left: 450px; }
-    #trailSlider { left: 550px; width: 100px; }
-    #speedSelect { left: 660px; }
-    #toggleFollow { left: 740px; }
-    #fileInput { display: none; }
+
+#buttonBar {
+  position: fixed;
+  bottom: 1%;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-start;
+  z-index: 2000;
+}
+
+#buttonBar > * {
+  background: #333;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+  touch-action: manipulation;
+}
+
+#trailSlider {
+  width: 100px;
+}
+
+#fileInput {
+  display: none;
+}
+    
+    
+.cesium-button {
+  transform: scale(2);
+  transform-origin: top left;
+  margin-bottom: 12px; /* zusätzlicher Abstand zwischen Buttons */
+}
+
+.cesium-viewer-toolbar {
+  top: 30px !important;
+  right: 30px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* moderner Abstand zwischen Buttons */
+}
+    
+    
+
   </style>
 </head><body>
 
-<button id="switchView">Wechsel zu 3D</button>
-<button id="openFile">Datei auswählen</button>
-<button id="startBtn">Start</button>
-<button id="pauseBtn">Pause</button>
-<button id="rewindBtn">Zurück</button>
-<input type="range" id="trailSlider" min="10" max="300" value="60">
-<select id="speedSelect">
-  <option value="1">1x</option>
-  <option value="2">2x</option>
-  <option value="4">4x</option>
-  <option value="8">8x</option>
-</select>
-<button id="toggleFollow">Kamera folgt: AN</button>
+<div id="buttonBar">
+  <button id="switchView">Wechsel zu 3D</button>
+  <button id="openFile">Datei auswählen</button>
+  <button id="startBtn">Start</button>
+  <button id="pauseBtn">Pause</button>
+  <button id="rewindBtn">Zurück</button>
+  <input type="range" id="trailSlider" min="10" max="300" value="60">
+  <select id="speedSelect">
+    <option value="1">1x</option>
+    <option value="2">2x</option>
+    <option value="4">4x</option>
+    <option value="8">8x</option>
+  </select>
+  <button id="toggleFollow">Kamera folgt: AN</button>
+</div>
 <input type="file" id="fileInput" accept=".kml">
-
 <div id="cesiumContainer"></div>
 <div id="chartContainer"><canvas id="mainChart"></canvas></div>
 
 <script>
 Cesium.Ion.defaultAccessToken  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
-const altitudeOffset = 34;
+const altitudeOffset = 36;
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
   sceneMode: Cesium.SceneMode.SCENE2D,
-  baseLayerPicker: true,
   animation: false,
   timeline: false,
+  baseLayerPicker: true,     // nur dieser bleibt
+  fullscreenButton: false,
+  homeButton: false,
+  sceneModePicker: false,
+  geocoder: true,
+  navigationHelpButton: false,
+  infoBox: false,
+  selectionIndicator: false,
   terrainProvider: undefined
 });
 
