@@ -103,6 +103,14 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
   selectionIndicator: false,
   terrainProvider: undefined
 });
+const controller = viewer.scene.screenSpaceCameraController;
+controller.rotateRate = 0.3;          // Kamera-Rotation
+controller.zoomEventTypes = [
+  Cesium.CameraEventType.WHEEL,
+  Cesium.CameraEventType.PINCH
+];
+controller.zoomRate = 0.5;            // Zoom-Empfindlichkeit
+controller.tiltRate = 0.3;            // Neigungsrate (nur in 3D relevant)
 
 let fullCoords = [], animationIndex = 0, animationInterval = null;
 let mainChart, is3D = false, speedFactor = 1, trailSeconds = 60, followEnabled = true;
