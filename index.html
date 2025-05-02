@@ -112,6 +112,8 @@ controller.zoomEventTypes = [
 controller.zoomRate = 0.5;            // Zoom-Empfindlichkeit
 controller.tiltRate = 0.3;            // Neigungsrate (nur in 3D relevant)
 
+let verticalLineEntities = [];
+
 let fullCoords = [], animationIndex = 0, animationInterval = null;
 let mainChart, is3D = false, speedFactor = 1, trailSeconds = 60, followEnabled = true;
 let movingPointEntity = null, followTransform;
@@ -124,22 +126,57 @@ const trailPositions = new Cesium.CallbackProperty(() => {
   );
 }, false);
 
-viewer.entities.add({ polyline: { positions: trailPositions, width: 3, material: Cesium.Color.RED.withAlpha(0.9) } });
+viewer.entities.add({ polyline: { positions: trailPositions, width: 3, material: Cesium.Color.BLUE.withAlpha(0.9) } });
 
-function updateMovingPoint(p) {
+
+async function updateMovingPoint(p) {
   const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
+
+  // Flugpunkt setzen oder aktualisieren
   if (!movingPointEntity) {
     movingPointEntity = viewer.entities.add({
       position: pos,
-      point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 }
+      point: {
+        pixelSize: 10,
+        color: Cesium.Color.YELLOW,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 2
+      }
     });
     if (followEnabled) enableFollow(p);
   } else {
     movingPointEntity.position = pos;
     if (followEnabled) updateFollow(p);
   }
-}
 
+  // Echte Bodenhöhe abfragen
+  const terrainProvider = viewer.terrainProvider;
+  const carto = Cesium.Cartographic.fromDegrees(p.lon, p.lat);
+  const [updated] = await Cesium.sampleTerrainMostDetailed(terrainProvider, [carto]);
+  const groundHeight = updated.height ?? 0;
+
+  const ground = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, groundHeight);
+
+  // Neue Bodenlinie hinzufügen
+  const newLine = viewer.entities.add({
+    polyline: {
+      positions: [pos, ground],
+      width: 2,
+      material: Cesium.Color.GRAY.withAlpha(0.5)
+    }
+  });
+
+  // Neue Linie in Liste einfügen
+  verticalLineEntities.push(newLine);
+
+  // Zu viele Linien? Älteste(n) löschen
+  while (verticalLineEntities.length > 5) {
+    const old = verticalLineEntities.shift();
+    if (viewer.entities.contains(old)) {
+      viewer.entities.remove(old);
+    }
+  }
+}
 function enableFollow(p) {
   const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
   const offset = new Cesium.Cartesian3(0, -1000, 500);
@@ -150,24 +187,24 @@ function enableFollow(p) {
 function updateFollow(p) {
   const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
   followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
-  viewer.camera.lookAtTransform(followTransform, new Cesium.Cartesian3(0, -1000, 500));
+  viewer.camera.lookAtTransform(followTransform, viewer.camera.position); // nur Position bleibt erhalten
 }
 
 function stopFollow() {
   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 }
 
-function startAnimation() {
+async function startAnimation() {
   clearInterval(animationInterval);
-  animationInterval = setInterval(() => {
+  animationInterval = setInterval(async () => {
     if (animationIndex >= fullCoords.length - 1) {
       clearInterval(animationInterval);
       return;
     }
     animationIndex++;
-    updateMovingPoint(fullCoords[animationIndex]);
+    await updateMovingPoint(fullCoords[animationIndex]);
   }, 1000 / speedFactor);
-}
+} 
 
 function createChart() {
   const ctx = document.getElementById('mainChart').getContext('2d');
@@ -245,6 +282,7 @@ document.getElementById('rewindBtn').onclick = () => {
 };
 document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
 document.getElementById('speedSelect').onchange = e => speedFactor = parseInt(e.target.value);
+
 document.getElementById('toggleFollow').onclick = () => {
   followEnabled = !followEnabled;
   document.getElementById('toggleFollow').textContent = followEnabled ? 'Kamera folgt: AN' : 'Kamera folgt: AUS';
