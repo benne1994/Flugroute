@@ -33,15 +33,10 @@ button, select, input[type="range"] { touch-action: manipulation;
   padding: 12px 20px;      /* mehr Fläche */
   border-radius: 10px;     /* weichere Ecken */
 }
-
   </style>
 </head><body><div id="buttonBar">
   <button id="switchView">Wechsel zu 3D</button>
-
-
-
 <button id="openFile">Datei auswählen</button>
-
 <!-- Datei-Optionen Dialog -->
 <div id="fileOptionsDialog" style="display: none; position: fixed; top: 25%; left: 50%; width: 80%; transform: translateX(-50%); background: grey; padding: 20px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 3000;">
   <p>Was möchtest du tun?</p>
@@ -57,10 +52,6 @@ button, select, input[type="range"] { touch-action: manipulation;
   <div id="serverFileList" style="display: flex; flex-direction: column; gap: 10px;"></div>
   <button onclick="document.getElementById('serverFileDialog').style.display='none'">Abbrechen</button>
 </div>
-
-
-
-
 <input type="file" id="fileInput" accept=".kml">
   <button id="startBtn">Start</button>
   <button id="pauseBtn">Pause</button>
@@ -129,11 +120,11 @@ const trailPositions = new Cesium.CallbackProperty(() => {
 viewer.entities.add({
   polyline: {
     positions: trailPositions,
-    width: 12,
+    width: 8,
     material: new Cesium.PolylineGlowMaterialProperty({
       glowPower: 1.0,          // wie stark es leuchtet (0.0–1.0)
 
-      color: Cesium.Color.BLUE.withAlpha(0.9)
+      color: Cesium.Color.BLUE.withAlpha(0.8)
     })
   }
 });
@@ -167,13 +158,17 @@ async function updateMovingPoint(p) {
         Cesium.Matrix3.setColumn(rotMatrix, 1, trueUp, rotMatrix);
         Cesium.Matrix3.setColumn(rotMatrix, 2, dir, rotMatrix);
 
-        const baseQuat = Cesium.Quaternion.fromRotationMatrix(rotMatrix);
+const baseQuat = Cesium.Quaternion.fromRotationMatrix(rotMatrix);
 
-        // zusätzliche feste Rotation (z. B. -90° um X-Achse)
-        const correctionQuat = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, Cesium.Math.toRadians(-20));
-        
+// Erst -90° um Y-Achse, dann +90° um X-Achse
+const yRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, Cesium.Math.toRadians(-90));
+const xRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(-120));
 
-        return Cesium.Quaternion.multiply(baseQuat, correctionQuat, new Cesium.Quaternion());
+// Kombiniere X und Y-Korrekturrotationen
+const correctionQuat = Cesium.Quaternion.multiply(xRot, yRot, new Cesium.Quaternion());
+
+// Wende Korrektur auf Basisrotation an
+return Cesium.Quaternion.multiply(baseQuat, correctionQuat, new Cesium.Quaternion());  
       }, false),
       model: {
         uri: 'https://benne1994.github.io/Flugroute/falcon.glb',
@@ -220,13 +215,7 @@ async function updateMovingPoint(p) {
   document.getElementById('infoAlt').textContent = p.alt.toFixed(1);
   document.getElementById('infoRelAlt').textContent = (p.alt - startAltitude).toFixed(1);
   document.getElementById('infoVario').textContent = climbRate.toFixed(1);
-}
-
-
-
-
-
- 
+} 
  async function createVerticalQuad(p1, p2) {
   const baseColor = Cesium.Color.fromCssColorString("#6699FF"); // helleres Blau
 
@@ -265,25 +254,45 @@ async function updateMovingPoint(p) {
   });
 }
  
- 
- 
- 
- 
- 
-
-
 function enableFollow(p) {
   const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
-  const offset = new Cesium.Cartesian3(0, -1000, 500);
-  followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
-  viewer.camera.lookAtTransform(followTransform, offset);
+
+  if (viewer.scene.mode === Cesium.SceneMode.SCENE3D) {
+    const offset = new Cesium.Cartesian3(0, -1000, 500);
+    followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+    viewer.camera.lookAtTransform(followTransform, offset);
+  } else {
+    // In 2D nur Position setzen, ohne Offset oder Transform
+    viewer.camera.setView({ destination: pos });
+  }
 }
+
+
 
 function updateFollow(p) {
   const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
-  followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
-  viewer.camera.lookAtTransform(followTransform, viewer.camera.position); // nur Position bleibt erhalten
+
+  if (viewer.scene.mode === Cesium.SceneMode.SCENE3D) {
+    followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+    viewer.camera.lookAtTransform(followTransform, viewer.camera.position);
+  } else {
+    const currentHeight = viewer.camera.positionCartographic.height;
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, currentHeight)
+    });
+  }
 }
+
+function apply2DInteractionControl() {
+  if (viewer.scene.mode === Cesium.SceneMode.SCENE2D && followEnabled) {
+    controller.enableTranslate = false;  // Verschieben mit Maus blockieren
+    controller.enableZoom = true;        // Zoomen bleibt erlaubt
+  } else {
+    controller.enableTranslate = true;
+    controller.enableZoom = true;
+  }
+}
+
 
 function stopFollow() {
   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
@@ -347,7 +356,7 @@ async function startAnimation() {
     await updateMovingPoint(currentPoint);
 
     // Alle 3 Schritte Fläche zwischen Flugspur und Terrain erzeugen
-    if (animationIndex % 8 === 0 && animationIndex > 0) {
+    if (animationIndex % 3 === 0 && animationIndex > 0) {
       await createVerticalQuad(fullCoords[animationIndex - 1], currentPoint);
     }
 
@@ -458,6 +467,7 @@ document.getElementById('switchView').onclick = () => {
   viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
   document.getElementById('switchView').textContent = is3D ? 'Wechsel zu 2D' : 'Wechsel zu 3D';
   if (is3D) Cesium.createWorldTerrainAsync().then(t => viewer.terrainProvider = t);
+apply2DInteractionControl();
 };
 
 document.getElementById('openFile').onclick = () => {
@@ -600,5 +610,6 @@ document.getElementById('toggleFollow').onclick = () => {
   if (!followEnabled) stopFollow();
   else updateMovingPoint(fullCoords[animationIndex]);
 updateChartMarker();
+apply2DInteractionControl();
 };
 </script></body></html>
