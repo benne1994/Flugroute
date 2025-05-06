@@ -6,14 +6,25 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; background: #f0f0f0; overflow: hidden; }
-    #cesiumContainer { position: absolute; top: 0px; left: 0; width: 100%; height: 70%; }
-    #chartContainer { position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: #D3D3D3; padding: 10px; box-sizing: border-box; }#mainChart { width: 100%; height: 100%; }
+    #cesiumContainer { position: absolute; top: 0px; left: 0; width: 100%; height: 80%; }
+    #chartContainer { position: absolute; bottom: 0; rigth: 0; width: 100%; height: 30%; background: #D3D3D3; padding:10px; box-sizing: border-box; }
+#mainChart { width: 100%; height: 90%; }
 button, select, input[type="range"] { touch-action: manipulation;
 }
 
-#buttonBar { position: fixed; bottom: 1%; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: flex-start; z-index: 2000; }
+#buttonBar {
+  position: fixed;
+  top: 200px;
+  left: 10px;
+  bottom: unset;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: flex-start;
+  z-index: 2000;
+}
 
-#buttonBar > * { background: #333; color: white; padding: 10px 15px; border: none; border-radius: 20px; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); touch-action: manipulation; }
+#buttonBar > * { background: #333; color: white; padding: 10px 15px; border: none; border-radius: 20px; font-size: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); touch-action: manipulation; }
 
 #trailSlider { width: 100px; }
 
@@ -35,8 +46,8 @@ button, select, input[type="range"] { touch-action: manipulation;
 }
   </style>
 </head><body><div id="buttonBar">
-  <button id="switchView">Wechsel zu 3D</button>
-<button id="openFile">Datei auswählen</button>
+  <button id="switchView">3D</button>
+<button id="openFile">Datei</button>
 <!-- Datei-Optionen Dialog -->
 <div id="fileOptionsDialog" style="display: none; position: fixed; top: 25%; left: 50%; width: 80%; transform: translateX(-50%); background: grey; padding: 20px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 3000;">
   <p>Was möchtest du tun?</p>
@@ -47,23 +58,22 @@ button, select, input[type="range"] { touch-action: manipulation;
 </div>
 
 <!-- Server-Dateiliste Dialog -->
-<div id="serverFileDialog" style="display: none; position: fixed; top: 25%; left: 50%; transform: translateX(-50%); width: 80%; heigth: 80%; background: grey; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 3000;">
+<div id="serverFileDialog" style="display: none; position: fixed; top: 25%; left: 50%; transform: translateX(-50%); width: 80%; height: 80%; background: grey; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 3000;">
   <p>Verfügbare Dateien auf dem Server:</p>
   <div id="serverFileList" style="display: flex; flex-direction: column; gap: 10px;"></div>
   <button onclick="document.getElementById('serverFileDialog').style.display='none'">Abbrechen</button>
 </div>
 <input type="file" id="fileInput" accept=".kml">
   <button id="startBtn">Start</button>
-  <button id="pauseBtn">Pause</button>
-  <button id="rewindBtn">Zurück</button>
-  <input type="range" id="trailSlider" min="10" max="1000" value="80">
-  <select id="speedSelect">
-    <option value="1">1x</option>
-    <option value="2">2x</option>
-    <option value="4">4x</option>
-    <option value="8">8x</option>
+  <button id="pauseBtn">Pause</button>   
+  <select id="speedSelect">  
+    <option value="1">  1x</option>
+    <option value="2">  2x</option>
+    <option value="4">  4x</option>
+    <option value="8">  8x</option>
   </select>
-  <button id="toggleFollow">Kamera folgt: AN</button>
+  <button id="toggleFollow">Kamera</button>
+    <input type="range" id="trailSlider" min="10" max="1000" value="10">  
 </div>
 <div id="cesiumContainer"></div>
 <div id="infoBox">
@@ -75,8 +85,8 @@ button, select, input[type="range"] { touch-action: manipulation;
 <div id="chartContainer"><canvas id="mainChart"></canvas></div><script>
 Cesium.Ion.defaultAccessToken  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
-let startAltitude = null;
-const altitudeOffset = 38;
+let startAltitude = 5;
+const altitudeOffset = 50;
 const viewer = new Cesium.Viewer('cesiumContainer', {
   sceneMode: Cesium.SceneMode.SCENE2D,
   animation: false,
@@ -465,7 +475,7 @@ function updateChartMarker() {
 document.getElementById('switchView').onclick = () => {
   is3D = !is3D;
   viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
-  document.getElementById('switchView').textContent = is3D ? 'Wechsel zu 2D' : 'Wechsel zu 3D';
+  document.getElementById('switchView').textContent = is3D ? '2D' : '3D';
   if (is3D) Cesium.createWorldTerrainAsync().then(t => viewer.terrainProvider = t);
 apply2DInteractionControl();
 };
@@ -582,7 +592,7 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
       animationIndex = 0;
       updateMovingPoint(fullCoords[0]);
       createChart();
-    }
+    } 
   
   
     };
@@ -591,10 +601,6 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
 
 document.getElementById('startBtn').onclick = startAnimation;
 document.getElementById('pauseBtn').onclick = () => clearInterval(animationInterval);
-document.getElementById('rewindBtn').onclick = () => {
-  animationIndex = 0;
-  updateMovingPoint(fullCoords[0]);
-};
 document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
 document.getElementById('speedSelect').onchange = async e => {
   speedFactor = parseInt(e.target.value);
@@ -606,7 +612,7 @@ document.getElementById('speedSelect').onchange = async e => {
 
 document.getElementById('toggleFollow').onclick = () => {
   followEnabled = !followEnabled;
-  document.getElementById('toggleFollow').textContent = followEnabled ? 'Kamera folgt: AN' : 'Kamera folgt: AUS';
+  document.getElementById('toggleFollow').textContent = followEnabled ? 'An' : 'Aus';
   if (!followEnabled) stopFollow();
   else updateMovingPoint(fullCoords[animationIndex]);
 updateChartMarker();
