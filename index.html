@@ -66,7 +66,7 @@ button, select, input[type="range"] { touch-action: manipulation;
 
 #fileOptionsDialog button,
 #serverFileDialog button {
-  font-size: 18px;         /* größere Schrift */
+  font-size: 1.5vw;         /* größere Schrift */
   padding: 12px 20px;      /* mehr Fläche */
   border-radius: 10px;     /* weichere Ecken */
 }
@@ -81,6 +81,7 @@ button, select, input[type="range"] { touch-action: manipulation;
   <button id="loadLocalBtn">Lokal laden</button>
   <button id="loadServerBtn">Vom Server laden</button>
   <button id="uploadServerBtn">Auf Server speichern</button>
+  <button id="saveLocalBtn">Lokal speichern</button>
   <button onclick="document.getElementById('fileOptionsDialog').style.display='none'">Abbrechen</button>
 </div>
 
@@ -132,10 +133,10 @@ controller.zoomRate = 0.5;            // Zoom-Empfindlichkeit
 controller.tiltRate = 0.3;            // Neigungsrate (nur in 3D relevant)
 
 let lastQuadTime = null;
-
+let originalKmlContent = null;
 let verticalQuadEntities = [];
 let verticalLineEntities = [];
-
+let originalFileName = null;
 let fullCoords = [], animationIndex = 0, animationInterval = null;
 let mainChart, is3D = false, speedFactor = 1, trailSeconds = 60, followEnabled = true;
 let movingPointEntity = null, followTransform;
@@ -151,12 +152,10 @@ const trailPositions = new Cesium.CallbackProperty(() => {
 viewer.entities.add({
   polyline: {
     positions: trailPositions,
-    width: 8,
-    material: new Cesium.PolylineGlowMaterialProperty({
-      glowPower: 1.0,          // wie stark es leuchtet (0.0–1.0)
-
-      color: Cesium.Color.BLUE.withAlpha(0.8)
-    })
+    width: 2,
+    material: new Cesium.ColorMaterialProperty(
+      Cesium.Color.BLUE.withAlpha(1.0)
+    )
   }
 });
 
@@ -204,7 +203,7 @@ return Cesium.Quaternion.multiply(baseQuat, correctionQuat, new Cesium.Quaternio
       }, false),
       model: {
         uri: 'https://benne1994.github.io/Flugroute/falcon_flying.glb',
-        scale: 0.8,
+        scale: 0.9,
         minimumPixelSize: 32
       }
     });
@@ -335,6 +334,8 @@ async function loadFromServer(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Fehler beim Laden");
     const text = await response.text();
+    originalKmlContent = text;
+    originalFileName = url.split('/').pop();
     const lines = text.split(/\r?\n/);
     fullCoords = []; let currentTime = null;
     for (let line of lines) {
@@ -396,6 +397,23 @@ async function startAnimation() {
   }, 1000 / (speedFactor * 10));
 }
 
+
+document.getElementById('saveLocalBtn').onclick = () => {
+  if (!originalKmlContent) {
+    alert("Keine Originaldatei geladen.");
+    return;
+  }
+
+  const blob = new Blob([originalKmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = originalFileName || 'flugspur.kml';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 function createChart() {
   const ctx = document.getElementById('mainChart').getContext('2d');
@@ -532,6 +550,7 @@ document.getElementById('loadServerBtn').onclick = async () => {
       const btn = document.createElement('button');
       btn.textContent = file;
       btn.onclick = async () => {
+      originalFileName = file;
         document.getElementById('serverFileDialog').style.display = 'none';
         const url = `https://flugspur-backend.onrender.com/uploads/${encodeURIComponent(file)}`;
         await loadFromServer(url);
@@ -576,7 +595,9 @@ document.getElementById('uploadServerBtn').onclick = async () => {
 
 document.getElementById('fileInput').addEventListener('change', function(event) {
   const file = event.target.files[0]; if (!file) return;
+  originalFileName = file.name;
   const reader = new FileReader(); reader.onload = function(e) {
+  originalKmlContent = e.target.result;
     const lines = e.target.result.split(/\r?\n/);
     fullCoords = []; let currentTime = null;
     for (let line of lines) {
