@@ -14,8 +14,8 @@ button, select, input[type="range"] { touch-action: manipulation;
 
 #buttonBar {
   position: fixed;
-  top: 200px;
-  left: 10px;
+  top: 20vw;
+  left: 2vw;
   bottom: unset;
   display: flex;
   flex-direction: column;
@@ -24,17 +24,43 @@ button, select, input[type="range"] { touch-action: manipulation;
   z-index: 2000;
 }
 
-#buttonBar > * { background: #333; color: white; padding: 10px 15px; border: none; border-radius: 20px; font-size: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); touch-action: manipulation; }
+#buttonBar > button {
+  width: 8vw;
+  height: 8vw;
+  font-size: 4vw;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #333;
+  color: white;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+}
 
-#trailSlider { width: 100px; }
+#speedBtn {
+  font-weight: bold;
+}
+
+#togglePlayBtn, #toggleFollow {
+  font-size: 24px;
+  padding: 10px 15px;
+}
+
+#trailSlider { width: 15vw; }
 
 #fileInput { display: none; }
 
-.cesium-button { transform: scale(2); transform-origin: top left; margin-bottom: 12px; /* zusätzlicher Abstand zwischen Buttons */ }
+.cesium-button { transform: scale(2vw); transform-origin: top left; margin-bottom: 12px; transform: none;
+  width: 8vw;
+  height: 8vw;}
+.cesium-viewer-toolbar { top: 2vw !important; right: 2vw !important; display: flex; flex-direction: column; gap: 12px;}
 
-.cesium-viewer-toolbar { top: 30px !important; right: 30px !important; display: flex; flex-direction: column; gap: 12px; /* moderner Abstand zwischen Buttons */ }
+#infoBox { position: absolute; top: 1vw; left: 1vw; background: rgba(0,0,0,0.6); color: white; padding: 8px 12px; border-radius: 10px; font-size: 2vw; z-index: 1000; pointer-events: none;
 
-#infoBox { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px 12px; border-radius: 10px; font-size: 25px; z-index: 1000; pointer-events: none;
+
+
 
 } #infoBox strong { font-weight: bold; }
 
@@ -46,8 +72,9 @@ button, select, input[type="range"] { touch-action: manipulation;
 }
   </style>
 </head><body><div id="buttonBar">
-  <button id="switchView">3D</button>
-<button id="openFile">Datei</button>
+    <input type="range" id="trailSlider" min="10" max="1000" value="10">  
+  <button id="switchView">2D</button>
+<button id="openFile" title="Datei öffnen">📁</button>
 <!-- Datei-Optionen Dialog -->
 <div id="fileOptionsDialog" style="display: none; position: fixed; top: 25%; left: 50%; width: 80%; transform: translateX(-50%); background: grey; padding: 20px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 3000;">
   <p>Was möchtest du tun?</p>
@@ -64,16 +91,10 @@ button, select, input[type="range"] { touch-action: manipulation;
   <button onclick="document.getElementById('serverFileDialog').style.display='none'">Abbrechen</button>
 </div>
 <input type="file" id="fileInput" accept=".kml">
-  <button id="startBtn">Start</button>
-  <button id="pauseBtn">Pause</button>   
-  <select id="speedSelect">  
-    <option value="1">  1x</option>
-    <option value="2">  2x</option>
-    <option value="4">  4x</option>
-    <option value="8">  8x</option>
-  </select>
-  <button id="toggleFollow">Kamera</button>
-    <input type="range" id="trailSlider" min="10" max="1000" value="10">  
+<button id="togglePlayBtn">&#9654;</button> <!-- ▶ Startsymbol -->   
+<button id="speedBtn" title="Geschwindigkeit">1x</button>
+<button id="toggleFollow">&#128065;</button> <!-- 👁 oder anderes Symbol -->
+<button id="fullscreenBtn" title="Vollbild">⛶</button>
 </div>
 <div id="cesiumContainer"></div>
 <div id="infoBox">
@@ -85,21 +106,21 @@ button, select, input[type="range"] { touch-action: manipulation;
 <div id="chartContainer"><canvas id="mainChart"></canvas></div><script>
 Cesium.Ion.defaultAccessToken  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
-let startAltitude = 5;
+let startAltitude = null;
 const altitudeOffset = 50;
 const viewer = new Cesium.Viewer('cesiumContainer', {
-  sceneMode: Cesium.SceneMode.SCENE2D,
+  sceneMode: Cesium.SceneMode.SCENE3D,
   animation: false,
   timeline: false,
-  baseLayerPicker: true,     // nur dieser bleibt
+  baseLayerPicker: true,
   fullscreenButton: false,
   homeButton: false,
   sceneModePicker: false,
-  geocoder: true,
+  geocoder: false,
   navigationHelpButton: false,
   infoBox: false,
   selectionIndicator: false,
-  terrainProvider: undefined
+  terrain: Cesium.Terrain.fromWorldTerrain()
 });
 const controller = viewer.scene.screenSpaceCameraController;
 controller.rotateRate = 0.3;          // Kamera-Rotation
@@ -171,18 +192,19 @@ async function updateMovingPoint(p) {
 const baseQuat = Cesium.Quaternion.fromRotationMatrix(rotMatrix);
 
 // Erst -90° um Y-Achse, dann +90° um X-Achse
-const yRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, Cesium.Math.toRadians(-90));
-const xRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(-120));
+const yRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, Cesium.Math.toRadians(+0));
+const xRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(-90));
+const zRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(-90));
 
-// Kombiniere X und Y-Korrekturrotationen
-const correctionQuat = Cesium.Quaternion.multiply(xRot, yRot, new Cesium.Quaternion());
+
+const correctionQuat = Cesium.Quaternion.multiply(xRot, yRot, zRot, new Cesium.Quaternion());
 
 // Wende Korrektur auf Basisrotation an
 return Cesium.Quaternion.multiply(baseQuat, correctionQuat, new Cesium.Quaternion());  
       }, false),
       model: {
         uri: 'https://benne1994.github.io/Flugroute/falcon_flying.glb',
-        scale: 0.002,
+        scale: 0.8,
         minimumPixelSize: 32
       }
     });
@@ -474,8 +496,8 @@ function updateChartMarker() {
 
 document.getElementById('switchView').onclick = () => {
   is3D = !is3D;
-  viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE3D : Cesium.SceneMode.SCENE2D;
-  document.getElementById('switchView').textContent = is3D ? '2D' : '3D';
+  viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE2D : Cesium.SceneMode.SCENE3D;
+  document.getElementById('switchView').textContent = is3D ? '3D' : '2D';
   if (is3D) Cesium.createWorldTerrainAsync().then(t => viewer.terrainProvider = t);
 apply2DInteractionControl();
 };
@@ -599,23 +621,46 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
   reader.readAsText(file);
 });
 
-document.getElementById('startBtn').onclick = startAnimation;
-document.getElementById('pauseBtn').onclick = () => clearInterval(animationInterval);
-document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
-document.getElementById('speedSelect').onchange = async e => {
-  speedFactor = parseInt(e.target.value);
-  if (animationInterval) {
+let isPlaying = false;
+document.getElementById('togglePlayBtn').onclick = async () => {
+  if (!isPlaying) {
+    await startAnimation();
+    document.getElementById('togglePlayBtn').innerHTML = '&#10073;&#10073;'; // ❚❚ Pause
+  } else {
     clearInterval(animationInterval);
-    await startAnimation(); // direkt neu starten mit neuer Geschwindigkeit
+    document.getElementById('togglePlayBtn').innerHTML = '&#9654;'; // ▶ Play
   }
+  isPlaying = !isPlaying;
 };
+document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
 
 document.getElementById('toggleFollow').onclick = () => {
   followEnabled = !followEnabled;
-  document.getElementById('toggleFollow').textContent = followEnabled ? 'An' : 'Aus';
+  document.getElementById('toggleFollow').innerHTML = followEnabled ? '&#128065;' : '&#10060;'; // 👁 oder ❌
   if (!followEnabled) stopFollow();
   else updateMovingPoint(fullCoords[animationIndex]);
-updateChartMarker();
-apply2DInteractionControl();
+  updateChartMarker();
+  apply2DInteractionControl();
+};
+const speedValues = [1, 2, 4, 8];
+let speedIndex = 0;
+
+document.getElementById('speedBtn').onclick = async () => {
+  speedIndex = (speedIndex + 1) % speedValues.length;
+  speedFactor = speedValues[speedIndex];
+  document.getElementById('speedBtn').textContent = speedFactor + 'x';
+
+  if (animationInterval) {
+    clearInterval(animationInterval);
+    await startAnimation();
+  }
+};
+document.getElementById('fullscreenBtn').onclick = () => {
+  const elem = document.documentElement; // oder z. B. document.body
+  if (!document.fullscreenElement) {
+    elem.requestFullscreen().catch(err => alert(`Fehler: ${err.message}`));
+  } else {
+    document.exitFullscreen();
+  }
 };
 </script></body></html>
