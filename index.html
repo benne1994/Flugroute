@@ -184,8 +184,8 @@ controller.zoomEventTypes = [
   Cesium.CameraEventType.WHEEL,
   Cesium.CameraEventType.PINCH
 ];
-controller.zoomRate = 0.5;            // Zoom-Empfindlichkeit
-controller.tiltRate = 0.3;            // Neigungsrate (nur in 3D relevant)
+controller.zoomRate = 0.6;            // Zoom-Empfindlichkeit
+controller.tiltRate = 0.2;            // Neigungsrate (nur in 3D relevant)
 
 let lastQuadTime = null;
 let originalKmlContent = null;
@@ -207,7 +207,7 @@ const trailPositions = new Cesium.CallbackProperty(() => {
 viewer.entities.add({
   polyline: {
     positions: trailPositions,
-    width: 2,
+    width: 4,
     material: new Cesium.ColorMaterialProperty(
       Cesium.Color.BLUE.withAlpha(1.0)
     )
