@@ -13,9 +13,27 @@
 </script>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; background: #f0f0f0; overflow: hidden; }
-    #cesiumContainer { position: absolute; top: 0px; left: 0; width: 100%; height: 80%; }
-    #chartContainer { position: absolute; bottom: 0; rigth: 0; width: 100%; height: 30%; background: #D3D3D3; padding:10px; box-sizing: border-box; }
-#mainChart { width: 100%; height: 90%; }
+   
+#cesiumContainer { 
+  position: absolute; 
+  top: 0px; left: 0; 
+  width: 100%; 
+  height: 100%; }
+    
+    
+#chartContainer {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 30%;
+  background: rgba(211, 211, 211, 0.5);
+  padding: 0px;
+  box-sizing: border-box;
+}  
+    
+    
+#mainChart { width: 100%; height: 60%; }
 button, select, input[type="range"] { touch-action: manipulation;
 }
 
@@ -32,9 +50,9 @@ button, select, input[type="range"] { touch-action: manipulation;
 }
 
 #buttonBar > button {
-  width: 9vw;
-  height: 9vw;
-  font-size: 4.5vw;
+  width: 10vw;
+  height: 10vw;
+  font-size: 5vw;
   border-radius: 50%;
   padding: 0;
   display: flex;
@@ -71,11 +89,11 @@ button, select, input[type="range"] { touch-action: manipulation;
 
 #fileOptionsDialog button,
 #serverFileDialog button {
-  font-size: 5vw;         /* größere Schrift */
+  font-size: 1.4vw;         /* größere Schrift */
   padding: 12px 20px;      /* mehr Fläche */
   border-radius: 10px;     /* weichere Ecken */
+  flex-direction: column;    
 }
-
 
 #serverFileDialog {
   display: none;
@@ -127,7 +145,7 @@ button, select, input[type="range"] { touch-action: manipulation;
 }
   </style>
 </head><body><div id="buttonBar">
-    <input type="range" id="trailSlider" min="100" max="3000" value="10">  
+    <input type="range" id="trailSlider" min="100" max="3000" value="2999">  
   <button id="switchView">2D</button>
 <button id="openFile" title="Datei öffnen">📁</button>
 <!-- Datei-Optionen Dialog -->
@@ -193,7 +211,7 @@ let verticalQuadEntities = [];
 let verticalLineEntities = [];
 let originalFileName = null;
 let fullCoords = [], animationIndex = 0, animationInterval = null;
-let mainChart, is3D = false, speedFactor = 1, trailSeconds = 60, followEnabled = true;
+let mainChart, is3D = false, speedFactor = 1, trailSeconds = 3000, followEnabled = true;
 let movingPointEntity = null, followTransform;
 
 const trailPositions = new Cesium.CallbackProperty(() => {
