@@ -138,13 +138,14 @@
   }
 
 #fileOptionsDialog,
-#serverFileDialog {
+#serverFileDialog,
+#cutUploadDialog {
   position: fixed;
   top: 20%;
   left: 50%;
   transform: translateX(-50%);
   width: 80vw;
-  max-height: 70vh;
+  height: 40vh;
   background: #444;
   padding: 20px;
   border-radius: 15px;
@@ -154,11 +155,13 @@
   flex-direction: column;
   gap: 10px;
   color: white;
+  display: none;
 }
 
 #fileOptionsDialog button,
-#serverFileDialog button {
-  font-size: 1.4rem;
+#serverFileDialog button,
+#cutUploadDialog button {
+  font-size: 1.5rem;
   padding: 12px 20px;
   border-radius: 10px;
   background: #666;
@@ -184,7 +187,8 @@
   #serverFileList::-webkit-scrollbar-track {
   background-color: #444;}
 
-#fileOptionsDialog button {
+#fileOptionsDialog button,
+#cutUploadDialog button {
   display: block;
   width: 100%;
   margin-top: 10px;
@@ -223,6 +227,7 @@
   height: 5vw;
 }
 
+
 </style>
 
 </head>
@@ -235,6 +240,7 @@
     <div><strong>Höhe (NN):</strong> <span id="infoAlt">–</span> m</div>
     <div><strong>Höhe über Start:</strong> <span id="infoRelAlt">–</span> m</div>
     <div><strong>Steigrate:</strong> <span id="infoVario">–</span> m/s</div>
+    <div><strong>Strecke:</strong> <span id="infoDistance">–</span> km</div>
   </div>
 
   <div id="buttonBar">
@@ -261,6 +267,9 @@
     <button id="loadServerBtn">Vom Server laden</button>
     <button id="uploadServerBtn">Auf Server speichern</button>
     <button id="saveLocalBtn">Lokal speichern</button>
+   <button onclick="activateCutMode()">Datei zuschneiden</button>
+<button onclick="applyCut()">Schnitt anwenden</button>    
+    
     <button onclick="document.getElementById('fileOptionsDialog').style.display='none'">Abbrechen</button>
   </div>
 
@@ -270,6 +279,15 @@
     <div id="serverFileList"></div>
     <button onclick="document.getElementById('serverFileDialog').style.display='none'">Abbrechen</button>
   </div>
+  <button id="applyCutBtn">Zuschneiden</button>
+  <button onclick="document.getElementById('cutDialog').style.display='none'">Abbrechen</button>
+</div>
+
+<div id="cutUploadDialog" class="dialog hidden">
+  <p>Möchtest du die zugeschnittene Datei direkt auf dem Server speichern?</p>
+  <button onclick="uploadCutToServer()">Ja</button>
+<button id="cutCancelBtn">Nein</button>
+</div>
 </body>
 
 
@@ -428,6 +446,15 @@ return Cesium.Quaternion.multiply(baseQuat, correctionQuat, new Cesium.Quaternio
     const dt = p.seconds - prev.seconds;
     if (dt > 0) climbRate = (p.alt - prev.alt) / dt;
   }
+  
+  let distSum = 0;
+for (let i = 1; i <= animationIndex; i++) {
+  const dx = fullCoords[i].lon - fullCoords[i - 1].lon;
+  const dy = fullCoords[i].lat - fullCoords[i - 1].lat;
+  const d = Math.sqrt(dx * dx + dy * dy) * 111.32; // grobe Umrechnung in km
+  distSum += d;
+}
+document.getElementById('infoDistance').textContent = distSum.toFixed(2);
 
   document.getElementById('infoSpeed').textContent = speedKmh.toFixed(1);
   document.getElementById('infoAlt').textContent = p.alt.toFixed(1);
@@ -579,28 +606,95 @@ async function startAnimation() {
     if (animationIndex % 3 === 0 && animationIndex > 0) {
       await createVerticalQuad(fullCoords[animationIndex - 1], currentPoint);
     }
+    
+    
 
     updateChartMarker();
   }, 1000 / (speedFactor * 10));
 }
 
-
 document.getElementById('saveLocalBtn').onclick = () => {
-  if (!originalKmlContent) {
-    alert("Keine Originaldatei geladen.");
+  if (!fullCoords || fullCoords.length === 0) {
+    alert("Keine Daten zum Speichern.");
     return;
   }
 
-  const blob = new Blob([originalKmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+  let kml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  kml += `<kml xmlns="http://www.opengis.net/kml/2.2">\n`;
+  kml += `  <Document>\n`;
+
+  for (let i = 0; i < fullCoords.length; i++) {
+    const p = fullCoords[i];
+    // Nur Originalpunkte mit glatten Sekunden (keine Zwischenpunkte)
+    if (!Number.isInteger(p.seconds)) continue;
+
+    const sec = Math.floor(p.seconds);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const timestamp = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+    kml += `    <Placemark>\n`;
+    kml += `      <name>${timestamp}</name>\n`;
+    kml += `      <Point>\n`;
+    kml += `        <coordinates>${p.lon},${p.lat},${p.alt}</coordinates>\n`;
+    kml += `      </Point>\n`;
+    kml += `    </Placemark>\n`;
+  }
+
+  kml += `  </Document>\n`;
+  kml += `</kml>`;
+
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = originalFileName || 'flugspur.kml';
+  a.download = originalFileName?.replace('.kml', '_gekürzt.kml') || 'gekürzt.kml';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
+let draggingCut = null;
+
+document.getElementById("mainChart").addEventListener("touchstart", function (e) {
+  const touch = e.touches[0];
+  const chartRect = mainChart.canvas.getBoundingClientRect();
+  const x = touch.clientX - chartRect.left;
+
+  const startPixel = mainChart.scales.x.getPixelForValue(mainChart.options.plugins.annotation.annotations.cutStartLine.xMin);
+  const endPixel = mainChart.scales.x.getPixelForValue(mainChart.options.plugins.annotation.annotations.cutEndLine.xMin);
+
+  if (Math.abs(x - startPixel) < 20) {
+    draggingCut = "start";
+  } else if (Math.abs(x - endPixel) < 20) {
+    draggingCut = "end";
+  }
+});
+
+document.addEventListener("touchmove", function (e) {
+  if (!draggingCut || !mainChart) return;
+
+  const touch = e.touches[0];
+  const chartRect = mainChart.canvas.getBoundingClientRect();
+  const x = touch.clientX - chartRect.left;
+  const time = mainChart.scales.x.getValueForPixel(x);
+
+  if (draggingCut === "start") {
+    mainChart.options.plugins.annotation.annotations.cutStartLine.xMin = time;
+    mainChart.options.plugins.annotation.annotations.cutStartLine.xMax = time;
+  } else if (draggingCut === "end") {
+    mainChart.options.plugins.annotation.annotations.cutEndLine.xMin = time;
+    mainChart.options.plugins.annotation.annotations.cutEndLine.xMax = time;
+  }
+
+  mainChart.update('none');
+}, { passive: true });
+
+document.addEventListener("touchend", function () {
+  draggingCut = null;
+});
 
 function createChart() {
   const ctx = document.getElementById('mainChart').getContext('2d');
@@ -629,35 +723,65 @@ function createChart() {
       responsive: true,
       animation: false,
       plugins: {
-        legend: { display: true },
-        annotation: {
-          annotations: {
-            currentLine: {
-              type: 'line',
-              xMin: seconds[0],
-              xMax: seconds[0],
-              borderColor: 'red',
-              borderWidth: 2,
-              label: {
-                display: true,
-                content: ctx => {
-                  const sec = fullCoords[animationIndex]?.seconds ?? 0;
-                  const h = Math.floor(sec / 3600);
-                  const m = Math.floor((sec % 3600) / 60);
-                  const s = Math.floor(sec % 60);
-                  return h > 0
-                    ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-                    : `${m}:${s.toString().padStart(2, '0')}`;
-                },
-                backgroundColor: 'red',
-                color: 'white',
-                font: { weight: 'bold' },
-                position: 'start'
-              }
-            }
-          }
+  legend: { display: true },
+  annotation: {
+    annotations: {
+      currentLine: {
+        type: 'line',
+        xMin: seconds[0],
+        xMax: seconds[0],
+        borderColor: 'red',
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: ctx => {
+            const sec = fullCoords[animationIndex]?.seconds ?? 0;
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = Math.floor(sec % 60);
+            return h > 0
+              ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+              : `${m}:${s.toString().padStart(2, '0')}`;
+          },
+          backgroundColor: 'red',
+          color: 'white',
+          font: { weight: 'bold' },
+          position: 'start'
         }
       },
+      cutStartLine: {
+        type: 'line',
+        xMin: seconds[0],
+        xMax: seconds[0],
+        borderColor: 'blue',
+        borderWidth: 2,
+        display: false,
+        label: {
+          display: true,
+          content: 'Start',
+          backgroundColor: 'blue',
+          color: 'white'
+        },
+        draggable: true
+      },
+      cutEndLine: {
+        type: 'line',
+        xMin: seconds.at(-1),
+        xMax: seconds.at(-1),
+        borderColor: 'green',
+        borderWidth: 2,
+        display: false,
+        label: {
+          display: true,
+          content: 'Ende',
+          backgroundColor: 'green',
+          color: 'white'
+        },
+        draggable: true
+      }
+    }
+  }
+},
       onClick: async (event) => {
         const points = mainChart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, false);
         if (points.length > 0) {
@@ -1059,5 +1183,92 @@ window.addEventListener("touchend", () => {
   mainChart.resize();
 }
 });
+
+function activateCutMode() {
+  const ann = mainChart.options.plugins.annotation.annotations;
+  ann.cutStartLine.display = true;
+  ann.cutEndLine.display = true;
+  mainChart.update();
+}
+
+function applyCut() {
+  const ann = mainChart.options.plugins.annotation.annotations;
+  const start = ann.cutStartLine.xMin;
+  const end = ann.cutEndLine.xMin;
+
+  if (start >= end) {
+    alert("Startzeit muss kleiner als Endzeit sein.");
+    return;
+  }
+
+  const newCoords = fullCoords.filter(p => p.seconds >= start && p.seconds <= end);
+  if (newCoords.length === 0) {
+    alert("Kein gültiger Bereich ausgewählt.");
+    return;
+  }
+
+  // Nur die Originalpunkte übernehmen (also keine Interpolation!)
+  fullCoords = newCoords.filter((p, i) => i === 0 || p.seconds !== fullCoords[i - 1]?.seconds);
+
+  animationIndex = 0;
+  updateMovingPoint(fullCoords[0]);
+  createChart();
+
+  // Dialog zum Server-Upload anzeigen
+  document.getElementById('cutUploadDialog').style.display = 'block';
+}
+
+document.getElementById('cutCancelBtn').onclick = () => {
+  document.getElementById('cutUploadDialog').style.display = 'none';
+};
+
+async function uploadCutToServer() {
+  if (!fullCoords.length) {
+    alert("Keine zugeschnittene Datei vorhanden.");
+    return;
+    
+  }
+  
+
+  const defaultName = originalFileName?.replace(/\.kml$/i, '_cut.kml') || 'zugeschnitten.kml';
+  const customName = prompt("Dateiname für den Upload (inkl. .kml):", defaultName);
+  if (!customName) return;
+
+  let kml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  kml += `<kml xmlns="http://www.opengis.net/kml/2.2">\n`;
+  kml += `  <Document>\n`;
+
+  for (let p of fullCoords) {
+    if (!Number.isInteger(p.seconds)) continue;
+
+    const h = Math.floor(p.seconds / 3600);
+    const m = Math.floor((p.seconds % 3600) / 60);
+    const s = Math.floor(p.seconds % 60);
+    const time = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+    kml += `    <Placemark>\n`;
+    kml += `      <name>${time}</name>\n`;
+    kml += `      <Point>\n`;
+    kml += `        <coordinates>${p.lon},${p.lat},${p.alt}</coordinates>\n`;
+    kml += `      </Point>\n`;
+    kml += `    </Placemark>\n`;
+  }
+
+  kml += `  </Document>\n</kml>`;
+
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+
+  const { error } = await supabase.storage
+    .from('flugspuren')
+    .upload(customName, blob, { upsert: true });
+
+  if (error) {
+    alert("Upload-Fehler: " + error.message);
+  } else {
+    alert("Zugeschnittene Datei erfolgreich hochgeladen.");
+    document.getElementById('cutUploadDialog').style.display = 'none';
+    listSupabaseFiles();
+  }
+}
 
 </script></body></html>
