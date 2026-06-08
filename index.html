@@ -1,127 +1,359 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flugspur</title>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const supabase = window.supabase.createClient(
-      'https://jmtajdfehlvyzrtfnszs.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdGFqZGZlaGx2eXpydGZuc3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2Mzc1NzAsImV4cCI6MjA2MjIxMzU3MH0.GjQ7A9NwIineYRtrpUmy01i1hwRukkwQEcBKuVqlOEI'
-    );
-  </script>
-  <style>
-    :root{--bg:#080c12;--surface:rgba(12,18,28,.9);--border:rgba(80,160,255,.16);--accent:#4fa3ff;--accent2:#00e5a0;--danger:#ff4f6a;--text:#ddeeff;--text-dim:#6a88aa;--font-ui:'Rajdhani',sans-serif;--font-mono:'JetBrains Mono',monospace;--r:12px;--glass:blur(16px) saturate(180%)}
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font-ui);color:var(--text);overflow:hidden}
-    #cesiumContainer{position:absolute;inset:0}
-    #loadingBar{position:absolute;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:9999;transition:width .3s;display:none}
-    #loadingMsg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 28px;z-index:9998;display:none;font-size:1rem;font-weight:600;letter-spacing:.06em;color:var(--accent)}
-    #hud{position:absolute;top:14px;left:14px;background:var(--surface);border:1px solid var(--border);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border-radius:var(--r);padding:10px 14px;z-index:1000;pointer-events:none;min-width:168px}
-    .hud-title{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;font-weight:700}
-    .hud-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)}
-    .hud-row:last-child{border-bottom:none}
-    .hud-label{color:var(--text-dim);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:clamp(8px,1.6vw,10px)}
-    .hud-val{font-family:var(--font-mono);font-size:clamp(10px,2vw,13px);color:var(--accent);font-weight:500}
-    .hud-val.up{color:var(--accent2)}.hud-val.dn{color:var(--danger)}
-    #camBadge{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border-radius:20px;padding:5px 16px;z-index:1000;pointer-events:none;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);opacity:0;transition:opacity .4s}
-    #camBadge.show{opacity:1}
-    #followIndicator{position:absolute;top:14px;right:72px;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.35);border-radius:20px;padding:4px 12px;z-index:1000;pointer-events:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);display:none}
-    #followIndicator.show{display:block}
-    #controls{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:7px;z-index:2000}
-    .ctrl-btn{width:clamp(38px,9.5vw,50px);height:clamp(38px,9.5vw,50px);border-radius:50%;border:1px solid var(--border);background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);color:var(--text);font-size:clamp(13px,3.2vw,18px);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s,transform .1s;font-family:var(--font-ui);font-weight:700;-webkit-tap-highlight-color:transparent;user-select:none}
-    .ctrl-btn:active{transform:scale(.91)}
-    .ctrl-btn:hover{border-color:var(--accent);background:rgba(79,163,255,.14)}
-    .ctrl-btn.active{border-color:var(--accent2);background:rgba(0,229,160,.1);color:var(--accent2)}
-    .ctrl-btn.play-btn{width:clamp(46px,11vw,58px);height:clamp(46px,11vw,58px);font-size:clamp(15px,3.8vw,21px)}
-    #trailSlider{width:clamp(38px,9.5vw,50px);cursor:pointer;accent-color:var(--accent);-webkit-appearance:slider-vertical;appearance:slider-vertical;height:70px;align-self:center}
-    #progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,.06);z-index:1001;cursor:pointer}
-    #progressFill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;pointer-events:none}
-    #chartPanel{position:absolute;bottom:4px;left:0;right:0;height:26%;background:var(--surface);border-top:1px solid var(--border);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);z-index:1000;display:flex;flex-direction:column;overflow:hidden}
-    #chartHandle{height:22px;cursor:ns-resize;touch-action:none;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
-    #chartHandle::before{content:'';width:36px;height:3px;border-radius:2px;background:var(--text-dim)}
-    #mainChart{flex:1;width:100%!important;height:100%!important}
-    .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2900;display:none;align-items:center;justify-content:center}
-    .dialog-overlay.open{display:flex}
-    .dialog-box{background:#0d1520;border:1px solid var(--border);border-radius:18px;padding:22px;width:min(92vw,370px);display:flex;flex-direction:column;gap:9px;box-shadow:0 24px 64px rgba(0,0,0,.7)}
-    .dialog-box h3{font-size:1rem;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
-    .dialog-btn{width:100%;padding:13px 15px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-family:var(--font-ui);font-size:.95rem;font-weight:600;cursor:pointer;text-align:left;transition:background .15s,border-color .15s;display:flex;align-items:center;gap:9px}
-    .dialog-btn:hover{background:rgba(79,163,255,.1);border-color:var(--accent)}
-    .dialog-btn.cancel{color:var(--text-dim);font-size:.85rem;justify-content:center}
-    #serverFileList{max-height:42vh;overflow-y:auto;display:flex;flex-direction:column;gap:7px;scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
-    .sfr{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
-    .sfn{flex:1;font-size:.9rem;cursor:pointer;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .sfn:hover{color:var(--accent)}
-    .sfa{border:none;background:rgba(255,255,255,.07);color:var(--text-dim);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.75rem;transition:background .15s}
-    .sfa:hover{background:rgba(255,79,106,.2);color:var(--danger)}
-    #keyHint{position:absolute;bottom:calc(26% + 16px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px 12px;font-size:9px;letter-spacing:.06em;color:var(--text-dim);pointer-events:none;opacity:0;transition:opacity .5s;z-index:1001;white-space:nowrap}
-    #keyHint.show{opacity:1}
-    .cesium-viewer-toolbar,.cesium-widget-credits{display:none!important}
-    #fileInput{display:none}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Flugspur · 3D Tracker</title>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const supabase = window.supabase.createClient(
+  'https://jmtajdfehlvyzrtfnszs.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdGFqZGZlaGx2eXpydGZuc3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2Mzc1NzAsImV4cCI6MjA2MjIxMzU3MH0.GjQ7A9NwIineYRtrpUmy01i1hwRukkwQEcBKuVqlOEI'
+);
+</script>
+<style>
+:root {
+  --c0:#060a10; --c1:#0b1220; --c2:#111c30;
+  --accent:#00d4ff; --accent2:#7b2fff; --green:#00ff9d; --red:#ff3864; --orange:#ff9500;
+  --text:#e8f4ff; --dim:#4a6080; --dimmer:#2a3a50;
+  --glow: 0 0 20px rgba(0,212,255,.4);
+  --glow2: 0 0 20px rgba(123,47,255,.4);
+  --font:'Orbitron',monospace; --body:'Inter',sans-serif;
+  --r:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:var(--c0);font-family:var(--body);color:var(--text);overflow:hidden}
+#cesiumContainer{position:absolute;inset:0}
+
+/* ── SCANLINE OVERLAY ── */
+#overlay{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
+}
+
+/* ── VIGNETTE ── */
+#vignette{position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.55) 100%);
+}
+
+/* ── TOP BAR ── */
+#topBar{
+  position:absolute;top:0;left:0;right:0;height:52px;z-index:100;
+  background:linear-gradient(180deg, rgba(6,10,16,.95) 0%, transparent 100%);
+  display:flex;align-items:center;padding:0 16px;gap:12px;
+  border-bottom:1px solid rgba(0,212,255,.08);
+}
+#appTitle{
+  font-family:var(--font);font-size:13px;font-weight:900;letter-spacing:.2em;
+  color:var(--accent);text-transform:uppercase;
+  text-shadow:0 0 20px rgba(0,212,255,.8);
+  white-space:nowrap;
+}
+#appTitle span{color:var(--accent2);text-shadow:0 0 20px rgba(123,47,255,.8)}
+#topSep{flex:1}
+#statusDot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:background .3s,box-shadow .3s}
+#statusDot.live{background:var(--green);box-shadow:0 0 8px var(--green)}
+#statusLabel{font-family:var(--font);font-size:9px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase}
+#timeDisplay{font-family:var(--font);font-size:11px;letter-spacing:.1em;color:var(--accent);min-width:80px;text-align:right}
+
+/* ── HUD PANELS ── */
+.hud-panel{
+  position:absolute;z-index:100;
+  background:rgba(6,10,16,.82);
+  border:1px solid rgba(0,212,255,.12);
+  backdrop-filter:blur(20px) saturate(160%);
+  -webkit-backdrop-filter:blur(20px) saturate(160%);
+  border-radius:var(--r);
+  overflow:hidden;
+}
+.hud-panel::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg, rgba(0,212,255,.04) 0%, transparent 60%);
+  pointer-events:none;
+}
+
+/* LEFT HUD */
+#hudLeft{top:62px;left:14px;width:172px}
+.hud-header{
+  padding:8px 12px 6px;
+  border-bottom:1px solid rgba(0,212,255,.08);
+  font-family:var(--font);font-size:8px;letter-spacing:.18em;
+  color:var(--accent);text-transform:uppercase;opacity:.7;
+}
+.metric{padding:5px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.03)}
+.metric:last-child{border-bottom:none;padding-bottom:8px}
+.metric-label{font-size:9px;font-weight:500;letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.metric-val{font-family:var(--font);font-size:12px;font-weight:700;color:var(--accent);text-align:right;min-width:70px}
+.metric-val.up{color:var(--green);text-shadow:0 0 8px rgba(0,255,157,.5)}
+.metric-val.dn{color:var(--red);text-shadow:0 0 8px rgba(255,56,100,.5)}
+.metric-val.warn{color:var(--orange)}
+
+/* SPEED GAUGE – right side */
+#hudRight{top:62px;right:70px;width:160px}
+.gauge-wrap{padding:10px 12px 12px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.gauge-label{font-family:var(--font);font-size:8px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase}
+#speedArc{display:block}
+.gauge-val{font-family:var(--font);font-size:22px;font-weight:900;color:var(--accent);line-height:1;text-shadow:var(--glow)}
+.gauge-unit{font-family:var(--font);font-size:9px;letter-spacing:.1em;color:var(--dim)}
+
+/* ── CONTROLS ── */
+#controls{
+  position:absolute;right:14px;top:62px;z-index:200;
+  display:flex;flex-direction:column;gap:8px;align-items:center;
+}
+.btn{
+  width:44px;height:44px;border-radius:50%;
+  border:1px solid var(--dimmer);background:rgba(6,10,16,.85);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  color:var(--dim);font-size:17px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;-webkit-tap-highlight-color:transparent;user-select:none;
+  position:relative;overflow:hidden;
+}
+.btn::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at center,rgba(0,212,255,.15) 0%,transparent 70%);opacity:0;transition:opacity .2s}
+.btn:active::after{opacity:1}
+.btn:active{transform:scale(.9)}
+.btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow)}
+.btn.on{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(0,255,157,.3)}
+.btn.warn{border-color:var(--orange);color:var(--orange)}
+.btn.big{width:52px;height:52px;font-size:20px;border-color:rgba(0,212,255,.3);color:var(--accent);box-shadow:var(--glow)}
+.btn.big:hover{background:rgba(0,212,255,.1)}
+#trailSlider{
+  -webkit-appearance:slider-vertical;appearance:slider-vertical;
+  width:44px;height:80px;cursor:pointer;accent-color:var(--accent);
+  opacity:.6;transition:opacity .2s;
+}
+#trailSlider:hover{opacity:1}
+
+/* ── CAM BADGE ── */
+#camBadge{
+  position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:200;
+  background:rgba(6,10,16,.9);border:1px solid var(--accent);border-radius:20px;
+  padding:5px 18px;font-family:var(--font);font-size:10px;letter-spacing:.15em;
+  color:var(--accent);text-transform:uppercase;pointer-events:none;
+  opacity:0;transition:opacity .4s;white-space:nowrap;
+  box-shadow:var(--glow);
+}
+#camBadge.show{opacity:1}
+
+/* ── PROGRESS ── */
+#progressWrap{
+  position:absolute;bottom:0;left:0;right:0;z-index:101;
+  padding:0 0 3px;
+}
+#progressTrack{
+  height:3px;background:rgba(255,255,255,.06);cursor:pointer;position:relative;
+}
+#progressFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),var(--accent));pointer-events:none;transition:none}
+#progressHandle{
+  position:absolute;top:50%;width:10px;height:10px;border-radius:50%;
+  background:var(--accent);transform:translate(-50%,-50%);pointer-events:none;
+  box-shadow:var(--glow);opacity:0;transition:opacity .2s;
+}
+#progressTrack:hover #progressHandle{opacity:1}
+
+/* ── TIMELINE / CHART ── */
+#chartWrap{
+  position:absolute;bottom:3px;left:0;right:0;
+  height:28%;min-height:90px;max-height:55vh;
+  background:rgba(6,10,16,.88);
+  border-top:1px solid rgba(0,212,255,.1);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  z-index:100;display:flex;flex-direction:column;
+}
+#chartDragHandle{
+  height:20px;cursor:ns-resize;touch-action:none;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,212,255,.03);border-bottom:1px solid rgba(0,212,255,.06);
+}
+#chartDragHandle::before{content:'';width:32px;height:3px;border-radius:2px;background:var(--dimmer)}
+#mainChart{flex:1;width:100%!important;min-height:0}
+
+/* ── DIALOGS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.overlay.open{display:flex}
+.modal{
+  background:linear-gradient(145deg, #0b1220, #060a10);
+  border:1px solid rgba(0,212,255,.2);border-radius:20px;
+  padding:24px;width:min(92vw,380px);
+  display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 32px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(0,212,255,.1);
+}
+.modal h3{
+  font-family:var(--font);font-size:.95rem;font-weight:700;
+  color:var(--accent);letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:4px;text-shadow:var(--glow);
+}
+.mBtn{
+  width:100%;padding:13px 16px;border-radius:10px;
+  border:1px solid var(--dimmer);background:rgba(255,255,255,.03);
+  color:var(--text);font-family:var(--body);font-size:.9rem;font-weight:500;
+  cursor:pointer;text-align:left;transition:all .15s;
+  display:flex;align-items:center;gap:10px;
+}
+.mBtn:hover{background:rgba(0,212,255,.08);border-color:var(--accent);color:var(--accent)}
+.mBtn.cancel{color:var(--dim);font-size:.82rem;justify-content:center;border-color:transparent}
+.mBtn.cancel:hover{background:rgba(255,255,255,.04);border-color:var(--dimmer);color:var(--text)}
+#serverFileList{max-height:40vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
+.sfr{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid var(--dimmer);background:rgba(255,255,255,.02);transition:background .15s}
+.sfr:hover{background:rgba(0,212,255,.05)}
+.sfn{flex:1;font-size:.88rem;cursor:pointer;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sfn:hover{color:var(--accent)}
+.sfa{border:none;background:rgba(255,56,100,.1);color:var(--dim);border-radius:6px;padding:5px 9px;cursor:pointer;font-size:.75rem;transition:all .15s}
+.sfa:hover{background:rgba(255,56,100,.25);color:var(--red)}
+
+/* ── SPLASH / LOADING ── */
+#splash{
+  position:absolute;inset:0;z-index:5000;background:var(--c0);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  transition:opacity .6s;
+}
+#splash.hide{opacity:0;pointer-events:none}
+.splash-title{font-family:var(--font);font-size:clamp(18px,5vw,32px);font-weight:900;letter-spacing:.25em;text-transform:uppercase;color:var(--accent);text-shadow:var(--glow)}
+.splash-title span{color:var(--accent2);text-shadow:var(--glow2)}
+.splash-sub{font-size:.8rem;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+.spinner{width:40px;height:40px;border:2px solid var(--dimmer);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#loadBar{position:absolute;top:0;left:0;height:2px;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));z-index:9999;transition:width .3s;pointer-events:none}
+
+.cesium-viewer-toolbar,.cesium-widget-credits{display:none!important}
+#fileInput{display:none}
+
+/* ── KEYBOARD HINT ── */
+#keyHint{
+  position:absolute;bottom:calc(28% + 10px);left:50%;transform:translateX(-50%);
+  background:rgba(6,10,16,.9);border:1px solid var(--dimmer);border-radius:8px;
+  padding:4px 14px;font-size:9px;letter-spacing:.07em;color:var(--dim);
+  pointer-events:none;opacity:0;transition:opacity .5s;z-index:101;white-space:nowrap;
+}
+#keyHint.show{opacity:1}
+
+/* ── FOLLOW TAG ── */
+#followTag{
+  position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:200;
+  background:rgba(0,255,157,.1);border:1px solid rgba(0,255,157,.3);border-radius:20px;
+  padding:4px 14px;font-family:var(--font);font-size:9px;letter-spacing:.15em;
+  color:var(--green);text-transform:uppercase;pointer-events:none;
+  display:none;white-space:nowrap;
+}
+#followTag.show{display:block}
+</style>
 </head>
 <body>
-<div id="loadingBar"></div>
-<div id="loadingMsg">⏳ Berechne Route…</div>
+
+<div id="loadBar"></div>
+<div id="splash">
+  <div class="splash-title">FLUG<span>SPUR</span></div>
+  <div class="splash-sub">3D Flight Tracker</div>
+  <div class="spinner"></div>
+</div>
+
+<div id="overlay"></div>
+<div id="vignette"></div>
 <div id="cesiumContainer"></div>
-<div id="hud">
-  <div class="hud-title">✈ Flugspur</div>
-  <div class="hud-row"><span class="hud-label">Speed</span><span class="hud-val" id="iSpeed">– km/h</span></div>
-  <div class="hud-row"><span class="hud-label">Höhe NN</span><span class="hud-val" id="iAlt">– m</span></div>
-  <div class="hud-row"><span class="hud-label">Δ Start</span><span class="hud-val" id="iRel">– m</span></div>
-  <div class="hud-row"><span class="hud-label">Vario</span><span class="hud-val" id="iVario">– m/s</span></div>
-  <div class="hud-row"><span class="hud-label">Strecke</span><span class="hud-val" id="iDist">– km</span></div>
-  <div class="hud-row"><span class="hud-label">Zeit</span><span class="hud-val" id="iTime">–</span></div>
+
+<!-- TOP BAR -->
+<div id="topBar">
+  <div id="appTitle">FLUG<span>SPUR</span></div>
+  <div id="topSep"></div>
+  <div id="statusDot"></div>
+  <div id="statusLabel">Bereit</div>
+  <div id="timeDisplay">--:--</div>
 </div>
+
+<!-- LEFT HUD -->
+<div class="hud-panel" id="hudLeft">
+  <div class="hud-header">Telemetrie</div>
+  <div class="metric"><span class="metric-label">Höhe NN</span><span class="metric-val" id="mAlt">– m</span></div>
+  <div class="metric"><span class="metric-label">Δ Start</span><span class="metric-val" id="mRel">– m</span></div>
+  <div class="metric"><span class="metric-label">Vario</span><span class="metric-val" id="mVario">– m/s</span></div>
+  <div class="metric"><span class="metric-label">Strecke</span><span class="metric-val" id="mDist">– km</span></div>
+  <div class="metric"><span class="metric-label">Glide</span><span class="metric-val" id="mGlide">–</span></div>
+</div>
+
+<!-- RIGHT SPEED GAUGE -->
+<div class="hud-panel" id="hudRight">
+  <div class="gauge-wrap">
+    <div class="gauge-label">Geschwindigkeit</div>
+    <svg id="speedArc" width="120" height="70" viewBox="0 0 120 70">
+      <defs>
+        <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#7b2fff"/>
+          <stop offset="100%" stop-color="#00d4ff"/>
+        </linearGradient>
+      </defs>
+      <path d="M10,65 A55,55 0 0,1 110,65" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8" stroke-linecap="round"/>
+      <path id="arcFill" d="M10,65 A55,55 0 0,1 110,65" fill="none" stroke="url(#arcGrad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="173"/>
+    </svg>
+    <div class="gauge-val" id="mSpeed">0</div>
+    <div class="gauge-unit">km/h</div>
+  </div>
+</div>
+
 <div id="camBadge"></div>
-<div id="followIndicator">● FOLGT</div>
+<div id="followTag">● FOLLOW</div>
+
+<!-- CONTROLS -->
 <div id="controls">
-  <input type="range" id="trailSlider" min="10" max="500" value="200" title="Spurlänge">
-  <button class="ctrl-btn" id="switchView">2D</button>
-  <button class="ctrl-btn" id="camModeBtn" title="Kamera (C)">🎥</button>
-  <button class="ctrl-btn" id="openFile">📁</button>
-  <button class="ctrl-btn play-btn" id="playBtn">▶</button>
-  <button class="ctrl-btn" id="speedBtn">1×</button>
-  <button class="ctrl-btn active" id="followBtn">👁</button>
-  <button class="ctrl-btn" id="fsBtn">⛶</button>
-  <button class="ctrl-btn" id="cutBtn">✂</button>
+  <input type="range" id="trailSlider" min="10" max="400" value="150" title="Spurlänge">
+  <input type="range" id="radiusSlider" min="1" max="50" value="15" title="Lade-Radius (km)" style="-webkit-appearance:slider-vertical;appearance:slider-vertical;width:clamp(38px,9.5vw,50px);height:70px;cursor:pointer;accent-color:var(--orange);opacity:.6;align-self:center" oninput="updateFocusRadius(this.value);document.getElementById('radiusLbl').textContent=this.value+'km'">
+  <div id="radiusLbl" style="font-family:var(--font);font-size:8px;color:var(--orange);text-align:center;opacity:.7;letter-spacing:.05em">15km</div>
+  <button class="btn" id="btn3d" title="2D/3D">2D</button>
+  <button class="btn" id="btnCam" title="Kamera (C)">🎥</button>
+  <button class="btn" id="btnFile" title="Datei öffnen">📁</button>
+  <button class="btn big" id="btnPlay" title="Play/Pause (Leertaste)">▶</button>
+  <button class="btn" id="btnSpeed" title="Geschwindigkeit">1×</button>
+  <button class="btn on" id="btnFollow" title="Follow (F)">👁</button>
+  <button class="btn" id="btnFS" title="Vollbild">⛶</button>
+  <button class="btn" id="btnCut" title="Zuschneiden">✂</button>
 </div>
+
 <input type="file" id="fileInput" accept=".kml">
-<div id="keyHint">LEERTASTE=Play · ◀▶=±10s · ↑↓=±60s · C=Kamera · F=Follow</div>
-<div id="progressBar"><div id="progressFill"></div></div>
-<div id="chartPanel">
-  <div id="chartHandle"></div>
+<div id="keyHint">SPACE=Play · ◀▶=±10s · ↑↓=±60s · C=Kamera · F=Follow</div>
+
+<!-- PROGRESS -->
+<div id="progressWrap">
+  <div id="progressTrack">
+    <div id="progressFill"></div>
+    <div id="progressHandle"></div>
+  </div>
+</div>
+
+<!-- CHART -->
+<div id="chartWrap">
+  <div id="chartDragHandle"></div>
   <canvas id="mainChart"></canvas>
 </div>
-<div class="dialog-overlay" id="dFile">
-  <div class="dialog-box">
+
+<!-- MODALS -->
+<div class="overlay" id="mFile">
+  <div class="modal">
     <h3>📂 Datei</h3>
-    <button class="dialog-btn" id="dLoadLocal">💾 Lokal laden</button>
-    <button class="dialog-btn" id="dLoadServer">☁ Vom Server</button>
-    <button class="dialog-btn" id="dUpload">⬆ Auf Server speichern</button>
-    <button class="dialog-btn" id="dSaveLocal">⬇ Lokal speichern</button>
-    <button class="dialog-btn cancel" id="dFileCancel">Abbrechen</button>
+    <button class="mBtn" id="mLoadLocal">💾 Lokal laden</button>
+    <button class="mBtn" id="mLoadServer">☁️ Vom Server laden</button>
+    <button class="mBtn" id="mUpload">⬆️ Auf Server hochladen</button>
+    <button class="mBtn" id="mSaveLocal">⬇️ Lokal speichern</button>
+    <button class="mBtn cancel" id="mFileClose">Abbrechen</button>
   </div>
 </div>
-<div class="dialog-overlay" id="dServer">
-  <div class="dialog-box">
-    <h3>☁ Server-Dateien</h3>
+<div class="overlay" id="mServer">
+  <div class="modal">
+    <h3>☁️ Server-Dateien</h3>
     <div id="serverFileList"></div>
-    <button class="dialog-btn cancel" id="dServerCancel">Abbrechen</button>
+    <button class="mBtn cancel" id="mServerClose">Abbrechen</button>
   </div>
 </div>
-<div class="dialog-overlay" id="dCutUpload">
-  <div class="dialog-box">
-    <h3>✂ Speichern?</h3>
-    <p style="color:var(--text-dim);font-size:.85rem">Zugeschnittene Datei auf Server hochladen?</p>
-    <button class="dialog-btn" id="dCutYes">✔ Ja</button>
-    <button class="dialog-btn cancel" id="dCutNo">Nein, lokal</button>
+<div class="overlay" id="mCutSave">
+  <div class="modal">
+    <h3>✂️ Speichern</h3>
+    <p style="color:var(--dim);font-size:.85rem;line-height:1.5">Zugeschnittene Datei hochladen?</p>
+    <button class="mBtn" id="mCutYes">✔️ Auf Server speichern</button>
+    <button class="mBtn cancel" id="mCutNo">Nur lokal speichern</button>
   </div>
 </div>
 
@@ -129,7 +361,7 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════
-// CESIUM – Performance flags first
+// CESIUM SETUP
 // ═══════════════════════════════════════════════════════════
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
@@ -140,175 +372,189 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
   geocoder:false, navigationHelpButton:false,
   infoBox:false, selectionIndicator:false,
   terrain: Cesium.Terrain.fromWorldTerrain(),
-  msaaSamples: 1,
-  useBrowserRecommendedResolution: false,
-  requestRenderMode: false   // keep continuous render for smooth animation
+  msaaSamples:1,
+  useBrowserRecommendedResolution:false,
+});
+const scene = viewer.scene, camera = viewer.camera, ctrl = scene.screenSpaceCameraController;
+
+// Performance
+ctrl.rotateRate=.22; ctrl.zoomRate=.3; ctrl.tiltRate=.12; ctrl.minimumZoomDistance=20;
+scene.fog.enabled=false;
+scene.globe.showGroundAtmosphere=false;
+scene.highDynamicRange=false;
+scene.globe.enableLighting=false;
+scene.globe.maximumScreenSpaceError=3;
+
+// ── FOCUSED TILE LOADING ──
+// Only load terrain/imagery tiles within a radius around the current position.
+// We use a ClippingPlane-free approach: override the tile visibility via
+// globe.tileLoadProgressEvent + a custom screen-space tile filter.
+// The real trick: set a very tight camera frustum culling + maximumScreenSpaceError
+// dynamically based on distance from the falcon.
+
+const FOCUS_RADIUS_DEG = 0.015; // ~1.5 km radius in degrees
+let focusLon = 0, focusLat = 0, focusActive = false;
+
+// Replace globe tile visibility: tiles outside radius get max SSE (never loaded)
+scene.preUpdate.addEventListener(() => {
+  if (!focusActive) return;
+  const half = window._focusRadiusDeg || (15/111.0);
+  scene.globe.cartographicLimitRectangle = new Cesium.Rectangle(
+    Cesium.Math.toRadians(focusLon - half),
+    Cesium.Math.toRadians(focusLat - half),
+    Cesium.Math.toRadians(focusLon + half),
+    Cesium.Math.toRadians(focusLat + half)
+  );
 });
 
-const scene  = viewer.scene;
-const camera = viewer.camera;
-const ctrl   = scene.screenSpaceCameraController;
-
-// Tune
-ctrl.rotateRate = 0.25; ctrl.zoomRate = 0.35; ctrl.tiltRate = 0.15;
-ctrl.minimumZoomDistance = 30;
-
-// Disable expensive effects
-scene.fog.enabled = false;
-scene.globe.showGroundAtmosphere = false;
-scene.highDynamicRange = false;
-scene.globe.enableLighting = false;
-scene.globe.maximumScreenSpaceError = 4; // reduce tile detail slightly
-
-navigator.geolocation.getCurrentPosition(p => {
-  camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(p.coords.longitude, p.coords.latitude, 1500), duration: 5 });
-}, () => {});
+function setFocusPoint(lon, lat) {
+  focusLon = lon; focusLat = lat; focusActive = true;
+}
+function clearFocusPoint() {
+  focusActive = false;
+  scene.globe.cartographicLimitRectangle = Cesium.Rectangle.MAX_VALUE;
+}
 
 // ═══════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════
-const ALT = 50;
-let coords    = [];   // { seconds, lon, lat, alt, distCum, pos3d }
-let trailLen  = 200;  // max trail index count
-let idx       = 0;
-let playing   = false;
-let speed     = 1;
-let followOn  = true;
-let camMode   = 0;    // 0=behind 1=cockpit 2=free
-let is3D      = false;
-let startAlt  = null;
-let origName  = null;
-let origKml   = null;
-let cutActive = false;
-let userMoved = false;
-let moveTimer = null;
-let mainChart = null;
-let rafId     = null;
-let lastTs    = null;
-let secAcc    = 0;
+const ALT=50;
+let coords=[], idx=0, trailLen=150;
+let playing=false, speed=1, followOn=true, camMode=0, is3D=false;
+let startAlt=null, origName=null, origKml=null, cutActive=false;
+let userMoved=false, moveTimer=null;
+let mainChart=null, rafId=null, lastTs=null, secAcc=0;
+let maxSpeed=0;
 
-// Camera offsets
-const CAM_OFF   = [new Cesium.Cartesian3(0,-250,70), new Cesium.Cartesian3(0,6,1), null];
-const CAM_NAMES = ['Hinter-Ansicht','Cockpit','Freie Ansicht'];
+// Cam offsets: behind / cockpit / overview / side
+const CAM_OFF=[
+  new Cesium.Cartesian3(0,-280,75),
+  new Cesium.Cartesian3(0,5,1.5),
+  new Cesium.Cartesian3(0,-800,400),
+  new Cesium.Cartesian3(200,-150,80),
+];
+const CAM_NAMES=['Hinter-Ansicht','Cockpit','Übersicht','Seitenansicht'];
 
 // ═══════════════════════════════════════════════════════════
-// POLYLINE PRIMITIVE APPROACH
-// The ghost (full route) is a static Primitive – uploaded to GPU once, never touched again.
-// The trail is a Primitive that gets REBUILT only when needed (index changes),
-// but we throttle rebuilds to max once per N frames.
+// PRIMITIVES
 // ═══════════════════════════════════════════════════════════
-let ghostPrimitive = null;
-let trailPrimitive = null;
-let trailRebuildPending = false;
-let lastTrailStart = -1;
-let lastTrailEnd   = -1;
+let ghostPrim=null, trailPrim=null;
+let lastTStart=-1, lastTEnd=-1;
+const REBUILD_STEP=4;
 
-// Falcon entity (model)
-let falconEntity = null;
-const falconPos3d = new Cesium.Cartesian3();
-
-// Reusable scratch for orientation
-const _dir  = new Cesium.Cartesian3();
-const _rgt  = new Cesium.Cartesian3();
-const _tup  = new Cesium.Cartesian3();
-const _rot  = new Cesium.Matrix3();
-const _qb   = new Cesium.Quaternion();
-const _qout = new Cesium.Quaternion();
-const _xRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(-90));
-const _tfm  = new Cesium.Matrix4();
-
-// ═══════════════════════════════════════════════════════════
-// BUILD PRIMITIVES
-// ═══════════════════════════════════════════════════════════
-function buildGhostPrimitive(positions) {
-  if (ghostPrimitive) { scene.primitives.remove(ghostPrimitive); ghostPrimitive = null; }
-  if (positions.length < 2) return;
-  ghostPrimitive = scene.primitives.add(new Cesium.Primitive({
+function buildGhost(positions){
+  if(ghostPrim){scene.primitives.remove(ghostPrim);ghostPrim=null;}
+  if(positions.length<2) return;
+  ghostPrim=scene.primitives.add(new Cesium.Primitive({
     geometryInstances: new Cesium.GeometryInstance({
-      geometry: new Cesium.PolylineGeometry({
-        positions,
-        width: 1.5,
-        vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT
-      }),
-      attributes: {
-        color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-          Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.18)
-        )
-      }
+      geometry: new Cesium.PolylineGeometry({positions, width:1.2,
+        vertexFormat:Cesium.PolylineColorAppearance.VERTEX_FORMAT}),
+      attributes:{color:Cesium.ColorGeometryInstanceAttribute.fromColor(
+        Cesium.Color.fromCssColorString('#7b2fff').withAlpha(0.22))}
     }),
-    appearance: new Cesium.PolylineColorAppearance(),
-    asynchronous: false   // build synchronously – no pop-in
+    appearance:new Cesium.PolylineColorAppearance(),
+    asynchronous:false
   }));
 }
 
-function buildTrailPrimitive(start, end) {
-  if (start === lastTrailStart && end === lastTrailEnd) return;
-  lastTrailStart = start; lastTrailEnd = end;
-
-  if (trailPrimitive) { scene.primitives.remove(trailPrimitive); trailPrimitive = null; }
-  if (end - start < 2) return;
-
-  const positions = coords.slice(start, end + 1).map(c => c.pos3d);
-
-  trailPrimitive = scene.primitives.add(new Cesium.Primitive({
-    geometryInstances: new Cesium.GeometryInstance({
-      geometry: new Cesium.PolylineGeometry({
-        positions,
-        width: 4,
-        vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT
+function buildTrail(start, end){
+  if(start===lastTStart&&end===lastTEnd) return;
+  lastTStart=start; lastTEnd=end;
+  if(trailPrim){scene.primitives.remove(trailPrim);trailPrim=null;}
+  if(end-start<2) return;
+  // Color-coded by altitude: low=cyan, high=purple
+  const slice=coords.slice(start,end+1);
+  const minA=Math.min(...slice.map(c=>c.alt));
+  const maxA=Math.max(...slice.map(c=>c.alt))+1;
+  // Build per-segment colored geometry
+  const instances=[];
+  for(let i=1;i<slice.length;i++){
+    const t=(slice[i].alt-minA)/(maxA-minA);
+    const r=Math.round(0   + t*123);
+    const g=Math.round(212 - t*130);
+    const b=255;
+    instances.push(new Cesium.GeometryInstance({
+      geometry:new Cesium.PolylineGeometry({
+        positions:[slice[i-1].pos3d,slice[i].pos3d],width:4,
+        vertexFormat:Cesium.PolylineColorAppearance.VERTEX_FORMAT
       }),
-      attributes: {
-        color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-          Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.95)
-        )
-      }
-    }),
-    appearance: new Cesium.PolylineColorAppearance(),
-    asynchronous: false
+      attributes:{color:Cesium.ColorGeometryInstanceAttribute.fromColor(
+        new Cesium.Color(r/255,g/255,b/255,.95))}
+    }));
+  }
+  if(!instances.length) return;
+  trailPrim=scene.primitives.add(new Cesium.Primitive({
+    geometryInstances:instances,
+    appearance:new Cesium.PolylineColorAppearance(),
+    asynchronous:false
   }));
 }
 
 // ═══════════════════════════════════════════════════════════
-// KML PARSER
+// FALCON
 // ═══════════════════════════════════════════════════════════
-function parseKml(text) {
-  const raw = []; let t = null;
-  for (let line of text.split(/\r?\n/)) {
-    line = line.trim();
-    if (line.startsWith('<name>')) {
-      const p = line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
-      if (p.length >= 2) t = p[0]*3600 + p[1]*60 + (p[2]||0);
+let falconEnt=null;
+const falcPos=new Cesium.Cartesian3();
+const _d=new Cesium.Cartesian3(),_r=new Cesium.Cartesian3(),_u=new Cesium.Cartesian3();
+const _m=new Cesium.Matrix3(),_qb=new Cesium.Quaternion(),_qo=new Cesium.Quaternion();
+const _xR=Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X,Cesium.Math.toRadians(-90));
+const _tf=new Cesium.Matrix4();
+
+function buildFalcon(){
+  if(falconEnt){viewer.entities.remove(falconEnt);falconEnt=null;}
+  Cesium.Cartesian3.clone(coords[0].pos3d,falcPos);
+  falconEnt=viewer.entities.add({
+    position:new Cesium.CallbackProperty(()=>falcPos,false),
+    orientation:new Cesium.CallbackProperty(calcOri,false),
+    model:{uri:'https://benne1994.github.io/Flugroute/falcon_flying.glb',
+      scale:.9,minimumPixelSize:32,maximumScale:260}
+  });
+}
+function calcOri(){
+  if(idx<1) return Cesium.Quaternion.IDENTITY;
+  Cesium.Cartesian3.subtract(coords[idx].pos3d,coords[idx-1].pos3d,_d);
+  if(Cesium.Cartesian3.magnitudeSquared(_d)<1e-10) return Cesium.Quaternion.IDENTITY;
+  Cesium.Cartesian3.normalize(_d,_d);
+  Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z,_d,_r);
+  Cesium.Cartesian3.normalize(_r,_r);
+  Cesium.Cartesian3.cross(_d,_r,_u);
+  Cesium.Matrix3.setColumn(_m,0,_r,_m);
+  Cesium.Matrix3.setColumn(_m,1,_u,_m);
+  Cesium.Matrix3.setColumn(_m,2,_d,_m);
+  Cesium.Quaternion.fromRotationMatrix(_m,_qb);
+  return Cesium.Quaternion.multiply(_qb,_xR,_qo);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PARSER
+// ═══════════════════════════════════════════════════════════
+function parseKml(text){
+  const raw=[]; let t=null;
+  for(let line of text.split(/\r?\n/)){
+    line=line.trim();
+    if(line.startsWith('<name>')){
+      const p=line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
+      if(p.length>=2) t=p[0]*3600+p[1]*60+(p[2]||0);
     }
-    if (line.includes('<coordinates>') && t !== null) {
-      const cs = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim();
-      const [lon,lat,alt] = cs.split(',').map(Number);
-      if (!isNaN(lon)&&!isNaN(lat)&&!isNaN(alt)) raw.push({seconds:t,lon,lat,alt});
+    if(line.includes('<coordinates>')&&t!==null){
+      const cs=line.substring(line.indexOf('>')+1,line.indexOf('</coordinates>')).trim();
+      const [lon,lat,alt]=cs.split(',').map(Number);
+      if(!isNaN(lon)&&!isNaN(lat)&&!isNaN(alt)) raw.push({seconds:t,lon,lat,alt});
     }
   }
-  if (!raw.length) return [];
-
-  // Interpolate with fewer steps to reduce total point count
-  const STEPS = 6;
-  const out = [];
-  for (let i = 0; i < raw.length; i++) {
-    if (i === 0) {
-      out.push({ ...raw[0], distCum:0, pos3d: Cesium.Cartesian3.fromDegrees(raw[0].lon, raw[0].lat, raw[0].alt+ALT) });
-      continue;
-    }
-    const prev = raw[i-1], curr = raw[i];
-    for (let s = 1; s <= STEPS; s++) {
-      const f = s/STEPS;
-      const lon = prev.lon+(curr.lon-prev.lon)*f;
-      const lat = prev.lat+(curr.lat-prev.lat)*f;
-      const alt = prev.alt+(curr.alt-prev.alt)*f;
-      const seconds = prev.seconds+(curr.seconds-prev.seconds)*f;
-      const last = out[out.length-1];
-      const dx = (lon-last.lon)*111320*Math.cos(lat*Math.PI/180);
-      const dy = (lat-last.lat)*111320;
-      out.push({ seconds, lon, lat, alt,
-        distCum: last.distCum + Math.sqrt(dx*dx+dy*dy),
-        pos3d: Cesium.Cartesian3.fromDegrees(lon,lat,alt+ALT)
-      });
+  if(!raw.length) return[];
+  const STEPS=6, out=[];
+  for(let i=0;i<raw.length;i++){
+    if(i===0){out.push({...raw[0],distCum:0,pos3d:Cesium.Cartesian3.fromDegrees(raw[0].lon,raw[0].lat,raw[0].alt+ALT)});continue;}
+    const pv=raw[i-1],cr=raw[i];
+    for(let s=1;s<=STEPS;s++){
+      const f=s/STEPS;
+      const lon=pv.lon+(cr.lon-pv.lon)*f, lat=pv.lat+(cr.lat-pv.lat)*f;
+      const alt=pv.alt+(cr.alt-pv.alt)*f, seconds=pv.seconds+(cr.seconds-pv.seconds)*f;
+      const last=out[out.length-1];
+      const dx=(lon-last.lon)*111320*Math.cos(lat*Math.PI/180), dy=(lat-last.lat)*111320;
+      out.push({seconds,lon,lat,alt,distCum:last.distCum+Math.sqrt(dx*dx+dy*dy),
+        pos3d:Cesium.Cartesian3.fromDegrees(lon,lat,alt+ALT)});
     }
   }
   return out;
@@ -317,248 +563,173 @@ function parseKml(text) {
 // ═══════════════════════════════════════════════════════════
 // LOAD
 // ═══════════════════════════════════════════════════════════
-function loadKmlText(text, name) {
-  origKml = text; origName = name;
-  showMsg('Berechne Route…');
-  setTimeout(() => {
-    coords = parseKml(text);
-    if (!coords.length) { hideMsg(); alert('Keine Koordinaten.'); return; }
-
-    // Ghost: build once from ALL positions
-    buildGhostPrimitive(coords.map(c => c.pos3d));
-    lastTrailStart = -1; lastTrailEnd = -1;
-
-    idx = 0; startAlt = null; playing = false;
-    lastTs = null; secAcc = 0;
+function loadKmlText(text,name){
+  origKml=text; origName=name;
+  document.getElementById('statusLabel').textContent='Lade…';
+  document.getElementById('statusDot').className='';
+  setTimeout(()=>{
+    coords=parseKml(text);
+    if(!coords.length){alert('Keine Koordinaten.');return;}
+    maxSpeed=0;
+    buildGhost(coords.map(c=>c.pos3d));
+    lastTStart=-1; lastTEnd=-1;
+    idx=0; startAlt=null; playing=false; lastTs=null; secAcc=0;
     cancelAnimationFrame(rafId);
-    document.getElementById('playBtn').textContent = '▶';
-
+    document.getElementById('btnPlay').textContent='▶';
     buildFalcon();
     buildChart();
-    hideMsg();
-    updateFrame(0, true);
-    camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(coords[0].lon, coords[0].lat, coords[0].alt+2500),
-      duration: 2
-    });
+    updateFrame(0,true);
+    camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(coords[0].lon,coords[0].lat,coords[0].alt+2800),duration:2.5});
+    document.getElementById('statusLabel').textContent='Aktiv';
+    document.getElementById('statusDot').className='live';
     showKeyHint();
-  }, 20);
+    setTimeout(()=>document.getElementById('splash').classList.add('hide'),200);
+  },20);
 }
-
-async function loadFromServer(url) {
-  showLoading(true);
-  try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    loadKmlText(await r.text(), url.split('/').pop());
-  } catch(e) { alert('Fehler: '+e.message); }
-  showLoading(false);
-}
-
-// ═══════════════════════════════════════════════════════════
-// FALCON
-// ═══════════════════════════════════════════════════════════
-function buildFalcon() {
-  if (falconEntity) { viewer.entities.remove(falconEntity); falconEntity = null; }
-  Cesium.Cartesian3.clone(coords[0].pos3d, falconPos3d);
-  falconEntity = viewer.entities.add({
-    position: new Cesium.CallbackProperty(() => falconPos3d, false),
-    orientation: new Cesium.CallbackProperty(computeOrientation, false),
-    model: {
-      uri: 'https://benne1994.github.io/Flugroute/falcon_flying.glb',
-      scale: 0.9, minimumPixelSize: 32, maximumScale: 250
-    }
-  });
-}
-
-function computeOrientation() {
-  if (idx < 1 || idx >= coords.length) return Cesium.Quaternion.IDENTITY;
-  const prev = coords[idx-1], curr = coords[idx];
-  Cesium.Cartesian3.subtract(curr.pos3d, prev.pos3d, _dir);
-  if (Cesium.Cartesian3.magnitudeSquared(_dir) < 1e-10) return Cesium.Quaternion.IDENTITY;
-  Cesium.Cartesian3.normalize(_dir, _dir);
-  Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, _dir, _rgt);
-  Cesium.Cartesian3.normalize(_rgt, _rgt);
-  Cesium.Cartesian3.cross(_dir, _rgt, _tup);
-  Cesium.Matrix3.setColumn(_rot, 0, _rgt, _rot);
-  Cesium.Matrix3.setColumn(_rot, 1, _tup, _rot);
-  Cesium.Matrix3.setColumn(_rot, 2, _dir, _rot);
-  Cesium.Quaternion.fromRotationMatrix(_rot, _qb);
-  return Cesium.Quaternion.multiply(_qb, _xRot, _qout);
+async function loadFromServer(url){
+  showLoad(true);
+  try{const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status);loadKmlText(await r.text(),url.split('/').pop());}
+  catch(e){alert('Fehler: '+e.message);}
+  showLoad(false);
 }
 
 // ═══════════════════════════════════════════════════════════
 // UPDATE FRAME
-// forceRebuild = true on seek/scrub, false during smooth playback
 // ═══════════════════════════════════════════════════════════
-// Throttle trail rebuilds: only rebuild every N index steps during playback
-const TRAIL_REBUILD_STEP = 3;
+function updateFrame(newIdx,force){
+  idx=newIdx;
+  const p=coords[idx];
+  Cesium.Cartesian3.clone(p.pos3d,falcPos);
 
-function updateFrame(newIdx, forceRebuild) {
-  idx = newIdx;
-  const p = coords[idx];
+  // Trail: only rebuild on step or force
+  const ts=Math.max(0,idx-trailLen);
+  if(force||Math.abs(idx-lastTEnd)>=REBUILD_STEP||ts!==lastTStart) buildTrail(ts,idx);
 
-  // Falcon: mutate in place (zero GC)
-  Cesium.Cartesian3.clone(p.pos3d, falconPos3d);
-
-  // Trail primitive: rebuild only when head has moved by TRAIL_REBUILD_STEP
-  const trailStart = Math.max(0, idx - trailLen);
-  const shouldRebuild = forceRebuild ||
-    Math.abs(idx - lastTrailEnd) >= TRAIL_REBUILD_STEP ||
-    trailStart !== lastTrailStart;
-  if (shouldRebuild) buildTrailPrimitive(trailStart, idx);
+  // Focus tile loading around current position
+  setFocusPoint(p.lon, p.lat);
 
   // Camera
-  if (followOn && !userMoved && camMode !== 2) applyFollow(p);
+  if(followOn&&!userMoved&&camMode!==4) applyFollow(p);
 
   // HUD
-  if (startAlt === null) startAlt = p.alt;
-  let spd = 0, vario = 0;
-  if (idx > 0) {
-    const prev = coords[idx-1], dt = p.seconds - prev.seconds;
-    if (dt > 0) {
-      const dx = (p.lon-prev.lon)*111320*Math.cos(p.lat*Math.PI/180);
-      const dy = (p.lat-prev.lat)*111320;
-      spd   = (Math.sqrt(dx*dx+dy*dy)/dt)*3.6;
-      vario = (p.alt-prev.alt)/dt;
+  if(startAlt===null) startAlt=p.alt;
+  let spd=0,vario=0,glide=0;
+  if(idx>0){
+    const pv=coords[idx-1],dt=p.seconds-pv.seconds;
+    if(dt>0){
+      const dx=(p.lon-pv.lon)*111320*Math.cos(p.lat*Math.PI/180),dy=(p.lat-pv.lat)*111320;
+      spd=(Math.sqrt(dx*dx+dy*dy)/dt)*3.6;
+      vario=(p.alt-pv.alt)/dt;
+      if(vario<-0.1) glide=spd/3.6/Math.abs(vario);
+      if(spd>maxSpeed) maxSpeed=spd;
     }
   }
-  document.getElementById('iSpeed').textContent = spd.toFixed(1)+' km/h';
-  document.getElementById('iAlt').textContent   = p.alt.toFixed(1)+' m';
-  document.getElementById('iRel').textContent   = (p.alt-startAlt).toFixed(1)+' m';
-  document.getElementById('iDist').textContent  = ((p.distCum||0)/1000).toFixed(2)+' km';
-  document.getElementById('iTime').textContent  = fmtT(p.seconds);
-  const ve = document.getElementById('iVario');
-  ve.textContent = vario.toFixed(2)+' m/s';
-  ve.className   = 'hud-val'+(vario>0.2?' up':vario<-0.2?' dn':'');
+
+  // Speed gauge
+  const arcLen=173, pct=Math.min(spd/Math.max(maxSpeed,80),1);
+  document.getElementById('arcFill').style.strokeDashoffset=(arcLen*(1-pct)).toFixed(1);
+  document.getElementById('mSpeed').textContent=Math.round(spd);
+
+  document.getElementById('mAlt').textContent=p.alt.toFixed(1)+' m';
+  document.getElementById('mRel').textContent=(p.alt-startAlt).toFixed(1)+' m';
+  document.getElementById('mDist').textContent=((p.distCum||0)/1000).toFixed(2)+' km';
+  document.getElementById('mGlide').textContent=glide>0?glide.toFixed(1)+'：1':'–';
+  document.getElementById('timeDisplay').textContent=fmtT(p.seconds);
+  const ve=document.getElementById('mVario');
+  ve.textContent=(vario>=0?'+':'')+vario.toFixed(2)+' m/s';
+  ve.className='metric-val'+(vario>0.3?' up':vario<-0.3?' dn':'');
 
   // Progress
-  document.getElementById('progressFill').style.width =
-    (coords.length > 1 ? (idx/(coords.length-1))*100 : 0)+'%';
+  const pct2=coords.length>1?(idx/(coords.length-1))*100:0;
+  document.getElementById('progressFill').style.width=pct2+'%';
+  document.getElementById('progressHandle').style.left=pct2+'%';
 }
 
 // ═══════════════════════════════════════════════════════════
 // CAMERA
 // ═══════════════════════════════════════════════════════════
-function applyFollow(p) {
-  if (scene.mode === Cesium.SceneMode.SCENE2D) {
-    camera.setView({ destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, camera.positionCartographic.height) });
+function applyFollow(p){
+  if(scene.mode===Cesium.SceneMode.SCENE2D){
+    camera.setView({destination:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,camera.positionCartographic.height)});
     return;
   }
-  Cesium.Transforms.eastNorthUpToFixedFrame(p.pos3d, undefined, _tfm);
-  camera.lookAtTransform(_tfm, CAM_OFF[camMode]);
+  Cesium.Transforms.eastNorthUpToFixedFrame(p.pos3d,undefined,_tf);
+  camera.lookAtTransform(_tf,CAM_OFF[camMode]);
 }
-function stopFollow() { camera.lookAtTransform(Cesium.Matrix4.IDENTITY); }
+function stopFollow(){camera.lookAtTransform(Cesium.Matrix4.IDENTITY);}
 
-scene.canvas.addEventListener('pointerdown', () => {
-  if (!followOn) return;
-  userMoved = true;
+scene.canvas.addEventListener('pointerdown',()=>{
+  if(!followOn) return;
+  userMoved=true;
   clearTimeout(moveTimer);
-  moveTimer = setTimeout(() => {
-    userMoved = false;
-    if (followOn && coords.length && camMode !== 2) applyFollow(coords[idx]);
-  }, 3000);
-}, { passive:true });
+  moveTimer=setTimeout(()=>{
+    userMoved=false;
+    if(followOn&&coords.length&&camMode<4) applyFollow(coords[idx]);
+  },3000);
+},{passive:true});
 
 // ═══════════════════════════════════════════════════════════
-// rAF LOOP
+// RAF LOOP
 // ═══════════════════════════════════════════════════════════
-function rafLoop(ts) {
-  if (!playing) return;
-  if (lastTs === null) lastTs = ts;
-  const wall = (ts - lastTs) / 1000;
-  lastTs = ts;
-  // Cap wall time to avoid huge jumps after tab switch
-  secAcc += Math.min(wall, 0.1) * speed;
-
-  const startSec = coords[idx]?.seconds ?? 0;
-  const target   = startSec + secAcc;
-
-  // Binary search
-  let lo = idx, hi = coords.length-1, ni = idx;
-  while (lo <= hi) {
-    const mid = (lo+hi)>>1;
-    if (coords[mid].seconds <= target) { ni = mid; lo = mid+1; }
-    else hi = mid-1;
-  }
-
-  if (ni !== idx) {
-    secAcc -= (coords[ni].seconds - startSec);
-    updateFrame(ni, false);
-    updateChartMarker();
-  }
-
-  if (idx >= coords.length-1) {
-    playing = false;
-    document.getElementById('playBtn').textContent = '▶';
-    return;
-  }
-  rafId = requestAnimationFrame(rafLoop);
+function rafLoop(ts){
+  if(!playing) return;
+  if(lastTs===null) lastTs=ts;
+  secAcc+=Math.min((ts-lastTs)/1000,.1)*speed;
+  lastTs=ts;
+  const s0=coords[idx]?.seconds??0, tgt=s0+secAcc;
+  let lo=idx,hi=coords.length-1,ni=idx;
+  while(lo<=hi){const m=(lo+hi)>>1;if(coords[m].seconds<=tgt){ni=m;lo=m+1;}else hi=m-1;}
+  if(ni!==idx){secAcc-=(coords[ni].seconds-s0);updateFrame(ni,false);updateChartMarker();}
+  if(idx>=coords.length-1){playing=false;document.getElementById('btnPlay').textContent='▶';document.getElementById('statusDot').className='';return;}
+  rafId=requestAnimationFrame(rafLoop);
 }
-
-function startPlay() {
-  if (!coords.length) return;
-  playing=true; lastTs=null; secAcc=0;
-  rafId = requestAnimationFrame(rafLoop);
-  document.getElementById('playBtn').textContent = '⏸';
-}
-function pausePlay() {
-  playing=false; cancelAnimationFrame(rafId);
-  document.getElementById('playBtn').textContent = '▶';
-}
-function scrub(secs) {
-  if (!coords.length) return;
-  const target = coords[idx].seconds + secs;
-  let ni = idx;
-  if (secs > 0) { while(ni < coords.length-1 && coords[ni].seconds < target) ni++; }
-  else          { while(ni > 0 && coords[ni].seconds > target) ni--; }
-  pausePlay(); updateFrame(ni, true); updateChartMarker();
-}
-
-// ═══════════════════════════════════════════════════════════
-// CAMERA MODE
-// ═══════════════════════════════════════════════════════════
-function cycleCam() {
-  camMode = (camMode+1)%3;
-  if (camMode !== 2 && coords.length) { userMoved=false; applyFollow(coords[idx]); }
-  else if (camMode===2) stopFollow();
-  const b=document.getElementById('camBadge'); b.textContent=CAM_NAMES[camMode]; b.classList.add('show');
-  setTimeout(()=>b.classList.remove('show'),2200);
+function startPlay(){if(!coords.length)return;playing=true;lastTs=null;secAcc=0;rafId=requestAnimationFrame(rafLoop);document.getElementById('btnPlay').textContent='⏸';document.getElementById('statusDot').className='live';}
+function pausePlay(){playing=false;cancelAnimationFrame(rafId);document.getElementById('btnPlay').textContent='▶';}
+function scrub(s){
+  if(!coords.length) return;
+  const tgt=coords[idx].seconds+s;
+  let ni=idx;
+  if(s>0){while(ni<coords.length-1&&coords[ni].seconds<tgt)ni++;}
+  else{while(ni>0&&coords[ni].seconds>tgt)ni--;}
+  pausePlay();updateFrame(ni,true);updateChartMarker();
 }
 
 // ═══════════════════════════════════════════════════════════
 // CHART
 // ═══════════════════════════════════════════════════════════
-function buildChart() {
-  const ctx = document.getElementById('mainChart').getContext('2d');
-  const seconds = coords.map(c=>c.seconds);
-  const alts    = coords.map(c=>c.alt);
-  const speeds  = coords.map((c,i)=>{
+function buildChart(){
+  const ctx=document.getElementById('mainChart').getContext('2d');
+  const secs=coords.map(c=>c.seconds);
+  const alts=coords.map(c=>c.alt);
+  const spds=coords.map((c,i)=>{
     if(!i) return 0;
-    const prev=coords[i-1], dt=c.seconds-prev.seconds;
+    const pv=coords[i-1],dt=c.seconds-pv.seconds;
     if(dt<=0) return 0;
-    const dx=(c.lon-prev.lon)*111320*Math.cos(c.lat*Math.PI/180);
-    const dy=(c.lat-prev.lat)*111320;
+    const dx=(c.lon-pv.lon)*111320*Math.cos(c.lat*Math.PI/180),dy=(c.lat-pv.lat)*111320;
     return(Math.sqrt(dx*dx+dy*dy)/dt)*3.6;
   });
-  if (mainChart) mainChart.destroy();
-  mainChart = new Chart(ctx, {
+  if(mainChart) mainChart.destroy();
+  mainChart=new Chart(ctx,{
     type:'line',
-    data:{ labels:seconds,
-      datasets:[
-        {label:'Höhe (m)',data:alts,borderColor:'#4fa3ff',borderWidth:1.5,backgroundColor:'rgba(79,163,255,.1)',fill:true,yAxisID:'y1',pointRadius:0,tension:.3},
-        {label:'Speed (km/h)',data:speeds,borderColor:'#00e5a0',borderWidth:1.5,fill:false,yAxisID:'y2',pointRadius:0,tension:.3}
-      ]
-    },
+    data:{labels:secs,datasets:[
+      {label:'Höhe (m)',data:alts,borderColor:'#00d4ff',borderWidth:1.5,
+       backgroundColor:(ctx2)=>{const g=ctx2.chart.ctx.createLinearGradient(0,0,0,ctx2.chart.height);g.addColorStop(0,'rgba(0,212,255,.25)');g.addColorStop(1,'rgba(0,212,255,0)');return g;},
+       fill:true,yAxisID:'y1',pointRadius:0,tension:.3},
+      {label:'Speed (km/h)',data:spds,borderColor:'#00ff9d',borderWidth:1.5,
+       fill:false,yAxisID:'y2',pointRadius:0,tension:.3}
+    ]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{
-        legend:{labels:{color:'#6a88aa',font:{family:'Rajdhani',size:11},boxWidth:12}},
+        legend:{labels:{color:'#4a6080',font:{family:'Inter',size:11},boxWidth:12}},
         annotation:{annotations:{
-          cursor:{type:'line',xMin:seconds[0],xMax:seconds[0],borderColor:'#ff4f6a',borderWidth:2,
-            label:{display:true,content:()=>fmtT(coords[idx]?.seconds??0),backgroundColor:'#ff4f6a',color:'#fff',font:{family:'JetBrains Mono',size:10},position:'start',padding:4}},
-          cutStart:{type:'line',xMin:seconds[0],xMax:seconds[0],borderColor:'#4fa3ff',borderWidth:2,display:false,label:{display:true,content:'Start',backgroundColor:'#4fa3ff',color:'#fff'}},
-          cutEnd:{type:'line',xMin:seconds.at(-1),xMax:seconds.at(-1),borderColor:'#00e5a0',borderWidth:2,display:false,label:{display:true,content:'Ende',backgroundColor:'#00e5a0',color:'#fff'}}
+          cursor:{type:'line',xMin:secs[0],xMax:secs[0],borderColor:'#ff3864',borderWidth:2,
+            label:{display:true,content:()=>fmtT(coords[idx]?.seconds??0),
+              backgroundColor:'#ff3864',color:'#fff',font:{family:'Orbitron',size:9},position:'start',padding:4}},
+          cutStart:{type:'line',xMin:secs[0],xMax:secs[0],borderColor:'#00d4ff',borderWidth:2,display:false,
+            label:{display:true,content:'▶ Start',backgroundColor:'#00d4ff',color:'#000'}},
+          cutEnd:{type:'line',xMin:secs.at(-1),xMax:secs.at(-1),borderColor:'#7b2fff',borderWidth:2,display:false,
+            label:{display:true,content:'End ◀',backgroundColor:'#7b2fff',color:'#fff'}}
         }}
       },
       onClick:(ev)=>{
@@ -566,20 +737,20 @@ function buildChart() {
         if(pts.length){pausePlay();updateFrame(pts[0].index,true);updateChartMarker();}
       },
       scales:{
-        x:{type:'linear',ticks:{color:'#6a88aa',font:{family:'JetBrains Mono',size:9},callback:v=>fmtT(v),maxTicksLimit:8},grid:{color:'rgba(255,255,255,.04)'}},
-        y1:{type:'linear',position:'left',title:{display:true,text:'Höhe (m)',color:'#4fa3ff',font:{size:10}},ticks:{color:'#4fa3ff',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
-        y2:{type:'linear',position:'right',title:{display:true,text:'km/h',color:'#00e5a0',font:{size:10}},ticks:{color:'#00e5a0',font:{size:9}},grid:{drawOnChartArea:false}}
+        x:{type:'linear',ticks:{color:'#2a3a50',font:{family:'Orbitron',size:8},callback:v=>fmtT(v),maxTicksLimit:8},grid:{color:'rgba(255,255,255,.03)'},border:{color:'rgba(255,255,255,.05)'}},
+        y1:{type:'linear',position:'left',title:{display:true,text:'m',color:'#00d4ff',font:{size:9}},ticks:{color:'#00d4ff',font:{size:8}},grid:{color:'rgba(0,212,255,.06)'},border:{color:'rgba(0,212,255,.1)'}},
+        y2:{type:'linear',position:'right',title:{display:true,text:'km/h',color:'#00ff9d',font:{size:9}},ticks:{color:'#00ff9d',font:{size:8}},grid:{drawOnChartArea:false},border:{color:'rgba(0,255,157,.1)'}}
       }
     }
   });
 }
-function updateChartMarker() {
+function updateChartMarker(){
   if(!mainChart||!coords.length) return;
   const a=mainChart.options.plugins.annotation.annotations.cursor;
   a.xMin=a.xMax=coords[idx]?.seconds??0; mainChart.update('none');
 }
 
-// Touch drag on chart for cut markers
+// Touch drag on chart
 let dragCut=null;
 document.getElementById('mainChart').addEventListener('touchstart',e=>{
   if(!cutActive||!mainChart) return;
@@ -587,7 +758,7 @@ document.getElementById('mainChart').addEventListener('touchstart',e=>{
   const a=mainChart.options.plugins.annotation.annotations;
   const sp=mainChart.scales.x.getPixelForValue(a.cutStart.xMin);
   const ep=mainChart.scales.x.getPixelForValue(a.cutEnd.xMin);
-  dragCut=Math.abs(x-sp)<28?'start':Math.abs(x-ep)<28?'end':null;
+  dragCut=Math.abs(x-sp)<30?'start':Math.abs(x-ep)<30?'end':null;
 },{passive:true});
 document.addEventListener('touchmove',e=>{
   if(!dragCut||!mainChart) return;
@@ -603,9 +774,9 @@ document.addEventListener('touchend',()=>dragCut=null);
 // ═══════════════════════════════════════════════════════════
 // CUT
 // ═══════════════════════════════════════════════════════════
-function activateCut() {
+function activateCut(){
   if(!mainChart||!coords.length) return;
-  cutActive=true; document.getElementById('cutBtn').classList.add('active');
+  cutActive=true; document.getElementById('btnCut').classList.add('warn');
   const a=mainChart.options.plugins.annotation.annotations;
   const s=coords.map(c=>c.seconds);
   a.cutStart.display=a.cutEnd.display=true;
@@ -613,48 +784,46 @@ function activateCut() {
   a.cutEnd.xMin=a.cutEnd.xMax=s[Math.floor(s.length*.9)];
   mainChart.update('none');
 }
-function applyCut() {
+function applyCut(){
   if(!cutActive||!mainChart) return;
   const a=mainChart.options.plugins.annotation.annotations;
   coords=coords.filter(c=>c.seconds>=a.cutStart.xMin&&c.seconds<=a.cutEnd.xMin);
   if(!coords.length){alert('Kein Bereich.');return;}
-  buildGhostPrimitive(coords.map(c=>c.pos3d));
-  lastTrailStart=-1; lastTrailEnd=-1;
-  startAlt=null; idx=0; cutActive=false;
-  document.getElementById('cutBtn').classList.remove('active');
+  buildGhost(coords.map(c=>c.pos3d));
+  lastTStart=-1; lastTEnd=-1; startAlt=null; idx=0;
+  cutActive=false; document.getElementById('btnCut').classList.remove('warn');
   buildChart(); updateFrame(0,true);
-  document.getElementById('dCutUpload').classList.add('open');
+  document.getElementById('mCutSave').classList.add('open');
 }
 
 // ═══════════════════════════════════════════════════════════
-// PROGRESS BAR
+// PROGRESS
 // ═══════════════════════════════════════════════════════════
-document.getElementById('progressBar').addEventListener('click',e=>{
+document.getElementById('progressTrack').addEventListener('click',e=>{
   if(!coords.length) return;
   const ni=Math.round((e.offsetX/e.currentTarget.offsetWidth)*(coords.length-1));
   pausePlay(); updateFrame(ni,true); updateChartMarker();
 });
 
 document.getElementById('trailSlider').oninput=e=>{
-  trailLen=parseInt(e.target.value);
-  lastTrailStart=-1; // force rebuild
+  trailLen=parseInt(e.target.value); lastTStart=-1;
   if(coords.length) updateFrame(idx,true);
 };
 
 // ═══════════════════════════════════════════════════════════
 // SUPABASE
 // ═══════════════════════════════════════════════════════════
-async function listFiles() {
+async function listFiles(){
   const L=document.getElementById('serverFileList');
-  L.innerHTML='<p style="color:var(--text-dim);font-size:.85rem;padding:8px">Lade…</p>';
+  L.innerHTML='<p style="color:var(--dim);font-size:.85rem;padding:8px">Lade…</p>';
   const{data,error}=await supabase.storage.from('flugspuren').list();
-  if(error){L.innerHTML='<p style="color:var(--danger)">'+error.message+'</p>';return;}
+  if(error){L.innerHTML='<p style="color:var(--red)">'+error.message+'</p>';return;}
   L.innerHTML='';
   (data||[]).forEach(f=>{
     const row=document.createElement('div'); row.className='sfr';
     const nm=document.createElement('span'); nm.className='sfn'; nm.textContent=f.name;
     nm.onclick=async()=>{
-      document.getElementById('dServer').classList.remove('open');
+      document.getElementById('mServer').classList.remove('open');
       const{data:u}=await supabase.storage.from('flugspuren').createSignedUrl(f.name,3600);
       if(u?.signedUrl) loadFromServer(u.signedUrl);
     };
@@ -666,42 +835,36 @@ async function listFiles() {
     };
     row.appendChild(nm); row.appendChild(dl); L.appendChild(row);
   });
-  if(!data?.length) L.innerHTML='<p style="color:var(--text-dim);font-size:.85rem;padding:8px">Keine Dateien.</p>';
+  if(!data?.length) L.innerHTML='<p style="color:var(--dim);font-size:.85rem;padding:8px">Keine Dateien vorhanden.</p>';
 }
-async function uploadCurrent(name) {
+async function uploadCurrent(name){
   const blob=new Blob([buildKml()],{type:'application/vnd.google-earth.kml+xml'});
   const{error}=await supabase.storage.from('flugspuren').upload(name,new File([blob],name),{upsert:true});
-  if(error) alert('Fehler: '+error.message); else alert('Gespeichert: '+name);
+  if(error) alert('Fehler: '+error.message); else alert('✔ Gespeichert: '+name);
 }
 
 // ═══════════════════════════════════════════════════════════
 // KML EXPORT
 // ═══════════════════════════════════════════════════════════
-function buildKml() {
+function buildKml(){
   let k=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n`;
-  for(const c of coords){
-    if(!Number.isInteger(c.seconds)) continue;
-    k+=`    <Placemark>\n      <name>${fmtT(c.seconds)}</name>\n      <Point>\n        <coordinates>${c.lon},${c.lat},${c.alt}</coordinates>\n      </Point>\n    </Placemark>\n`;
-  }
+  for(const c of coords){if(!Number.isInteger(c.seconds)) continue;k+=`    <Placemark>\n      <name>${fmtT(c.seconds)}</name>\n      <Point>\n        <coordinates>${c.lon},${c.lat},${c.alt}</coordinates>\n      </Point>\n    </Placemark>\n`;}
   return k+`  </Document>\n</kml>`;
 }
-function saveLocal() {
+function saveLocal(){
   if(!coords.length){alert('Keine Daten.');return;}
-  const a=Object.assign(document.createElement('a'),{
-    href:URL.createObjectURL(new Blob([buildKml()],{type:'application/vnd.google-earth.kml+xml'})),
-    download:(origName||'flugroute').replace('.kml','_export.kml')
-  });
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([buildKml()],{type:'application/vnd.google-earth.kml+xml'})),download:(origName||'flugroute').replace('.kml','_export.kml')});
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
 // ═══════════════════════════════════════════════════════════
 // CHART RESIZE
 // ═══════════════════════════════════════════════════════════
-const cp=document.getElementById('chartPanel'),ch=document.getElementById('chartHandle');
+const cw=document.getElementById('chartWrap'),cdh=document.getElementById('chartDragHandle');
 let rsz=false,rsY=0,rsH=0;
-ch.addEventListener('pointerdown',e=>{rsz=true;rsY=e.clientY;rsH=cp.offsetHeight;ch.setPointerCapture(e.pointerId);});
-ch.addEventListener('pointermove',e=>{if(!rsz)return;cp.style.height=Math.max(80,Math.min(window.innerHeight*.7,rsH+(rsY-e.clientY)))+'px';});
-ch.addEventListener('pointerup',()=>rsz=false);
+cdh.addEventListener('pointerdown',e=>{rsz=true;rsY=e.clientY;rsH=cw.offsetHeight;cdh.setPointerCapture(e.pointerId);});
+cdh.addEventListener('pointermove',e=>{if(!rsz)return;cw.style.height=Math.max(80,Math.min(window.innerHeight*.65,rsH+(rsY-e.clientY)))+'px';});
+cdh.addEventListener('pointerup',()=>rsz=false);
 
 // ═══════════════════════════════════════════════════════════
 // KEYBOARD
@@ -710,84 +873,90 @@ document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
   switch(e.code){
     case'Space': e.preventDefault(); playing?pausePlay():startPlay(); break;
-    case'ArrowRight': scrub(10);  break;
+    case'ArrowRight': scrub(10); break;
     case'ArrowLeft':  scrub(-10); break;
-    case'ArrowUp':    scrub(60);  break;
+    case'ArrowUp':    scrub(60); break;
     case'ArrowDown':  scrub(-60); break;
     case'KeyC': cycleCam(); break;
-    case'KeyF':
-      followOn=!followOn;
-      document.getElementById('followBtn').classList.toggle('active',followOn);
-      document.getElementById('followIndicator').classList.toggle('show',followOn);
-      if(!followOn) stopFollow();
-      else if(coords.length){userMoved=false;applyFollow(coords[idx]);}
-      break;
+    case'KeyF': toggleFollow(); break;
   }
 });
 
 // ═══════════════════════════════════════════════════════════
 // BUTTONS
 // ═══════════════════════════════════════════════════════════
-document.getElementById('playBtn').onclick   = ()=>playing?pausePlay():startPlay();
-document.getElementById('camModeBtn').onclick = cycleCam;
-document.getElementById('fsBtn').onclick     = ()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); };
-document.getElementById('switchView').onclick = ()=>{
+function cycleCam(){
+  camMode=(camMode+1)%CAM_NAMES.length;
+  if(camMode<4&&coords.length){userMoved=false;applyFollow(coords[idx]);}
+  const b=document.getElementById('camBadge'); b.textContent=CAM_NAMES[camMode]; b.classList.add('show');
+  setTimeout(()=>b.classList.remove('show'),2000);
+}
+function toggleFollow(){
+  followOn=!followOn;
+  document.getElementById('btnFollow').classList.toggle('on',followOn);
+  document.getElementById('followTag').classList.toggle('show',followOn);
+  if(!followOn) stopFollow(); else if(coords.length){userMoved=false;applyFollow(coords[idx]);}
+}
+
+document.getElementById('btnPlay').onclick=()=>playing?pausePlay():startPlay();
+document.getElementById('btnCam').onclick=cycleCam;
+document.getElementById('btnFollow').onclick=toggleFollow;
+document.getElementById('btnFS').onclick=()=>{if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen();};
+document.getElementById('btn3d').onclick=()=>{
   is3D=!is3D;
   scene.mode=is3D?Cesium.SceneMode.SCENE2D:Cesium.SceneMode.SCENE3D;
-  document.getElementById('switchView').textContent=is3D?'3D':'2D';
+  document.getElementById('btn3d').textContent=is3D?'3D':'2D';
   if(!is3D) Cesium.createWorldTerrainAsync().then(t=>viewer.terrainProvider=t);
 };
-document.getElementById('openFile').onclick    = ()=>document.getElementById('dFile').classList.add('open');
-document.getElementById('dFileCancel').onclick = ()=>document.getElementById('dFile').classList.remove('open');
-document.getElementById('dLoadLocal').onclick  = ()=>{ document.getElementById('dFile').classList.remove('open'); setTimeout(()=>{const f=document.getElementById('fileInput');f.value='';f.click();},80); };
-document.getElementById('dLoadServer').onclick = ()=>{ document.getElementById('dFile').classList.remove('open'); document.getElementById('dServer').classList.add('open'); listFiles(); };
-document.getElementById('dServerCancel').onclick = ()=>document.getElementById('dServer').classList.remove('open');
-document.getElementById('dUpload').onclick = ()=>{
-  document.getElementById('dFile').classList.remove('open');
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='.kml';
-  inp.onchange=async e=>{
-    const f=e.target.files[0]; if(!f) return;
-    const n=prompt('Dateiname:',f.name)||f.name; showLoading(true);
-    const{error}=await supabase.storage.from('flugspuren').upload(n,new File([f],n,{type:f.type}),{upsert:true});
-    showLoading(false);
-    if(error) alert(error.message); else alert('Hochgeladen: '+n);
-  };
+const spVals=[1,2,4,8,16,32];let spIdx=0;
+document.getElementById('btnSpeed').onclick=()=>{
+  spIdx=(spIdx+1)%spVals.length; speed=spVals[spIdx];
+  document.getElementById('btnSpeed').textContent=speed+'×';
+};
+document.getElementById('btnCut').onclick=()=>cutActive?applyCut():activateCut();
+document.getElementById('btnFile').onclick=()=>document.getElementById('mFile').classList.add('open');
+document.getElementById('mFileClose').onclick=()=>document.getElementById('mFile').classList.remove('open');
+document.getElementById('mLoadLocal').onclick=()=>{document.getElementById('mFile').classList.remove('open');setTimeout(()=>{const f=document.getElementById('fileInput');f.value='';f.click();},80);};
+document.getElementById('mLoadServer').onclick=()=>{document.getElementById('mFile').classList.remove('open');document.getElementById('mServer').classList.add('open');listFiles();};
+document.getElementById('mServerClose').onclick=()=>document.getElementById('mServer').classList.remove('open');
+document.getElementById('mUpload').onclick=()=>{
+  document.getElementById('mFile').classList.remove('open');
+  const inp=document.createElement('input');inp.type='file';inp.accept='.kml';
+  inp.onchange=async e=>{const f=e.target.files[0];if(!f)return;const n=prompt('Dateiname:',f.name)||f.name;showLoad(true);const{error}=await supabase.storage.from('flugspuren').upload(n,new File([f],n,{type:f.type}),{upsert:true});showLoad(false);if(error)alert(error.message);else alert('✔ Hochgeladen: '+n);};
   inp.click();
 };
-document.getElementById('dSaveLocal').onclick  = ()=>{ document.getElementById('dFile').classList.remove('open'); saveLocal(); };
-document.getElementById('fileInput').addEventListener('change',e=>{
-  const f=e.target.files[0]; if(!f) return;
-  (function(fr){fr.onload=ev=>loadKmlText(ev.target.result,f.name);fr.readAsText(f);}(new FileReader()));
-});
-document.getElementById('followBtn').onclick = ()=>{
-  followOn=!followOn;
-  document.getElementById('followBtn').classList.toggle('active',followOn);
-  document.getElementById('followIndicator').classList.toggle('show',followOn);
-  if(!followOn) stopFollow(); else if(coords.length){userMoved=false;applyFollow(coords[idx]);}
-};
-const spVals=[1,2,4,8,16]; let spIdx=0;
-document.getElementById('speedBtn').onclick=()=>{
-  spIdx=(spIdx+1)%spVals.length; speed=spVals[spIdx];
-  document.getElementById('speedBtn').textContent=speed+'×';
-};
-document.getElementById('cutBtn').onclick=()=>cutActive?applyCut():activateCut();
-document.getElementById('dCutYes').onclick=async()=>{
-  document.getElementById('dCutUpload').classList.remove('open');
-  const n=prompt('Dateiname:',(origName||'cut').replace('.kml','_schnitt.kml'));
-  if(n) await uploadCurrent(n);
-};
-document.getElementById('dCutNo').onclick=()=>{ document.getElementById('dCutUpload').classList.remove('open'); saveLocal(); };
+document.getElementById('mSaveLocal').onclick=()=>{document.getElementById('mFile').classList.remove('open');saveLocal();};
+document.getElementById('fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;(function(fr){fr.onload=ev=>loadKmlText(ev.target.result,f.name);fr.readAsText(f);}(new FileReader()));});
+document.getElementById('mCutYes').onclick=async()=>{document.getElementById('mCutSave').classList.remove('open');const n=prompt('Dateiname:',(origName||'cut').replace('.kml','_schnitt.kml'));if(n)await uploadCurrent(n);};
+document.getElementById('mCutNo').onclick=()=>{document.getElementById('mCutSave').classList.remove('open');saveLocal();};
 
 // ═══════════════════════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════════════════════
 function fmtT(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=Math.floor(s%60);return h?`${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`:`${m}:${String(ss).padStart(2,'0')}`;}
-function showLoading(on){const b=document.getElementById('loadingBar');b.style.display=on?'block':'none';b.style.width=on?'70%':'100%';if(!on)setTimeout(()=>b.style.display='none',350);}
-function showMsg(t){const m=document.getElementById('loadingMsg');m.textContent='⏳ '+t;m.style.display='block';}
-function hideMsg(){document.getElementById('loadingMsg').style.display='none';}
+function showLoad(on){const b=document.getElementById('loadBar');b.style.display=on?'block':'none';b.style.width=on?'70%':'100%';if(!on)setTimeout(()=>b.style.display='none',350);}
 function showKeyHint(){const h=document.getElementById('keyHint');h.classList.add('show');setTimeout(()=>h.classList.remove('show'),4500);}
 
-document.getElementById('followIndicator').classList.toggle('show',followOn);
+// Focus radius: slider value = km, convert to degrees (~0.001 deg per 111m)
+function updateFocusRadius(km){
+  const deg = parseFloat(km) / 111.0;
+  // Update the constant via closure
+  scene.globe.cartographicLimitRectangle = Cesium.Rectangle.MAX_VALUE; // reset, will be re-set next frame
+  window._focusRadiusDeg = deg;
+}
+// Patch setFocusPoint to use dynamic radius
+window._focusRadiusDeg = 15 / 111.0; // default 15km
+
+// ── INIT ──
+navigator.geolocation.getCurrentPosition(p=>{
+  camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(p.coords.longitude,p.coords.latitude,1500),duration:4});
+},()=>{});
+document.getElementById('followTag').classList.toggle('show',followOn);
+
+// Dismiss splash after cesium loads
+viewer.scene.globe.tileLoadProgressEvent.addEventListener(n=>{
+  if(n===0) setTimeout(()=>document.getElementById('splash').classList.add('hide'),600);
+});
 </script>
 </body>
 </html>
