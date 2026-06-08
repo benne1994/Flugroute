@@ -386,25 +386,26 @@ scene.globe.enableLighting=false;
 scene.globe.maximumScreenSpaceError=3;
 
 // ── FOCUSED TILE LOADING ──
-// Only load terrain/imagery tiles within a radius around the current position.
-// We use a ClippingPlane-free approach: override the tile visibility via
-// globe.tileLoadProgressEvent + a custom screen-space tile filter.
-// The real trick: set a very tight camera frustum culling + maximumScreenSpaceError
-// dynamically based on distance from the falcon.
+// Strategie: maximumScreenSpaceError (SSE) dynamisch basierend auf Kameraabstand
+// zur aktuellen Falcon-Position anpassen.
+// Nah = niedriger SSE (feine Tiles), weit weg = hoher SSE (kaum Tiles geladen).
+// Kein cartographicLimitRectangle – das blockiert das Rendering komplett.
 
-const FOCUS_RADIUS_DEG = 0.015; // ~1.5 km radius in degrees
 let focusLon = 0, focusLat = 0, focusActive = false;
+const SSE_NEAR = 2;   // hohe Detailtiefe direkt am Falcon
+const SSE_FAR  = 48;  // minimale Tiles weit weg
 
-// Replace globe tile visibility: tiles outside radius get max SSE (never loaded)
 scene.preUpdate.addEventListener(() => {
   if (!focusActive) return;
-  const half = window._focusRadiusDeg || (15/111.0);
-  scene.globe.cartographicLimitRectangle = new Cesium.Rectangle(
-    Cesium.Math.toRadians(focusLon - half),
-    Cesium.Math.toRadians(focusLat - half),
-    Cesium.Math.toRadians(focusLon + half),
-    Cesium.Math.toRadians(focusLat + half)
-  );
+  const camCarto = camera.positionCartographic;
+  if (!camCarto) return;
+  const dLon = Cesium.Math.toDegrees(camCarto.longitude) - focusLon;
+  const dLat = Cesium.Math.toDegrees(camCarto.latitude)  - focusLat;
+  const distKm = Math.sqrt(dLon*dLon + dLat*dLat) * 111.0;
+  const focusKm = window._focusRadiusKm || 15;
+  // Smooth ramp: within focusKm = near quality, beyond = far quality
+  const t = Math.min(Math.max((distKm - 0.5) / Math.max(focusKm, 1), 0), 1);
+  scene.globe.maximumScreenSpaceError = SSE_NEAR + t * (SSE_FAR - SSE_NEAR);
 });
 
 function setFocusPoint(lon, lat) {
@@ -412,7 +413,7 @@ function setFocusPoint(lon, lat) {
 }
 function clearFocusPoint() {
   focusActive = false;
-  scene.globe.cartographicLimitRectangle = Cesium.Rectangle.MAX_VALUE;
+  scene.globe.maximumScreenSpaceError = 4;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -937,15 +938,11 @@ function fmtT(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=Math.fl
 function showLoad(on){const b=document.getElementById('loadBar');b.style.display=on?'block':'none';b.style.width=on?'70%':'100%';if(!on)setTimeout(()=>b.style.display='none',350);}
 function showKeyHint(){const h=document.getElementById('keyHint');h.classList.add('show');setTimeout(()=>h.classList.remove('show'),4500);}
 
-// Focus radius: slider value = km, convert to degrees (~0.001 deg per 111m)
+// Focus radius: slider value = km
 function updateFocusRadius(km){
-  const deg = parseFloat(km) / 111.0;
-  // Update the constant via closure
-  scene.globe.cartographicLimitRectangle = Cesium.Rectangle.MAX_VALUE; // reset, will be re-set next frame
-  window._focusRadiusDeg = deg;
+  window._focusRadiusKm = parseFloat(km);
 }
-// Patch setFocusPoint to use dynamic radius
-window._focusRadiusDeg = 15 / 111.0; // default 15km
+window._focusRadiusKm = 15; // default 15 km
 
 // ── INIT ──
 navigator.geolocation.getCurrentPosition(p=>{
