@@ -18,229 +18,140 @@
   </script>
   <style>
     :root {
-      --bg: #080c12;
-      --surface: rgba(12, 18, 28, 0.88);
-      --border: rgba(80,160,255,0.16);
-      --accent: #4fa3ff;
-      --accent2: #00e5a0;
-      --warn: #ffb347;
-      --danger: #ff4f6a;
-      --text: #ddeeff;
-      --text-dim: #6a88aa;
-      --font-ui: 'Rajdhani', sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
-      --r: 12px;
-      --glass: blur(18px) saturate(200%);
+      --bg:#080c12;--surface:rgba(12,18,28,.9);--border:rgba(80,160,255,.16);
+      --accent:#4fa3ff;--accent2:#00e5a0;--danger:#ff4f6a;
+      --text:#ddeeff;--text-dim:#6a88aa;
+      --font-ui:'Rajdhani',sans-serif;--font-mono:'JetBrains Mono',monospace;
+      --r:12px;--glass:blur(16px) saturate(180%);
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font-ui);color:var(--text);overflow:hidden}
-    #cesiumContainer{position:absolute;inset:0;width:100%;height:100%}
+    #cesiumContainer{position:absolute;inset:0}
 
-    /* ── LOADING BAR ── */
-    #loadingBar{position:absolute;top:0;left:0;height:3px;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:9999;transition:width .3s ease;display:none}
+    #loadingBar{position:absolute;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:9999;transition:width .3s;display:none}
+    #loadingMsg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 28px;z-index:9998;display:none;font-size:1rem;font-weight:600;letter-spacing:.06em;color:var(--accent)}
 
-    /* ── HUD ── */
-    #hud{
-      position:absolute;top:14px;left:14px;
-      background:var(--surface);border:1px solid var(--border);
-      backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-      border-radius:var(--r);padding:10px 14px;z-index:1000;
-      pointer-events:none;min-width:170px;
-    }
+    #hud{position:absolute;top:14px;left:14px;background:var(--surface);border:1px solid var(--border);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border-radius:var(--r);padding:10px 14px;z-index:1000;pointer-events:none;min-width:168px}
     .hud-title{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;font-weight:700}
-    .hud-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .hud-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)}
     .hud-row:last-child{border-bottom:none}
     .hud-label{color:var(--text-dim);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:clamp(8px,1.6vw,10px)}
     .hud-val{font-family:var(--font-mono);font-size:clamp(10px,2vw,13px);color:var(--accent);font-weight:500}
     .hud-val.up{color:var(--accent2)}.hud-val.dn{color:var(--danger)}
 
-    /* ── CAMERA MODE BADGE ── */
-    #camBadge{
-      position:absolute;top:14px;left:50%;transform:translateX(-50%);
-      background:var(--surface);border:1px solid var(--border);
-      backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-      border-radius:20px;padding:5px 16px;z-index:1000;pointer-events:none;
-      font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-      color:var(--accent);opacity:0;transition:opacity .4s;
-    }
+    #camBadge{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border-radius:20px;padding:5px 16px;z-index:1000;pointer-events:none;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);opacity:0;transition:opacity .4s}
     #camBadge.show{opacity:1}
-
-    /* ── FOLLOW INDICATOR ── */
-    #followIndicator{
-      position:absolute;top:14px;right:72px;
-      background:rgba(0,229,160,0.15);border:1px solid rgba(0,229,160,0.4);
-      border-radius:20px;padding:4px 12px;z-index:1000;pointer-events:none;
-      font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-      color:var(--accent2);display:none;
-    }
+    #followIndicator{position:absolute;top:14px;right:72px;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.35);border-radius:20px;padding:4px 12px;z-index:1000;pointer-events:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);display:none}
     #followIndicator.show{display:block}
 
-    /* ── CONTROLS ── */
     #controls{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:7px;z-index:2000}
-    .ctrl-btn{
-      width:clamp(38px,9.5vw,50px);height:clamp(38px,9.5vw,50px);
-      border-radius:50%;border:1px solid var(--border);
-      background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-      color:var(--text);font-size:clamp(13px,3.2vw,18px);cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      transition:border-color .2s,background .2s,transform .1s,box-shadow .2s;
-      font-family:var(--font-ui);font-weight:700;letter-spacing:.03em;
-      -webkit-tap-highlight-color:transparent;user-select:none;
-    }
+    .ctrl-btn{width:clamp(38px,9.5vw,50px);height:clamp(38px,9.5vw,50px);border-radius:50%;border:1px solid var(--border);background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);color:var(--text);font-size:clamp(13px,3.2vw,18px);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s,transform .1s,box-shadow .2s;font-family:var(--font-ui);font-weight:700;-webkit-tap-highlight-color:transparent;user-select:none}
     .ctrl-btn:active{transform:scale(.91)}
-    .ctrl-btn:hover{border-color:var(--accent);background:rgba(79,163,255,0.14);box-shadow:0 0 12px rgba(79,163,255,.25)}
-    .ctrl-btn.active{border-color:var(--accent2);background:rgba(0,229,160,0.12);color:var(--accent2);box-shadow:0 0 10px rgba(0,229,160,.2)}
+    .ctrl-btn:hover{border-color:var(--accent);background:rgba(79,163,255,.14);box-shadow:0 0 10px rgba(79,163,255,.2)}
+    .ctrl-btn.active{border-color:var(--accent2);background:rgba(0,229,160,.1);color:var(--accent2)}
     .ctrl-btn.play-btn{width:clamp(46px,11vw,58px);height:clamp(46px,11vw,58px);font-size:clamp(15px,3.8vw,21px)}
     #trailSlider{width:clamp(38px,9.5vw,50px);cursor:pointer;accent-color:var(--accent);-webkit-appearance:slider-vertical;appearance:slider-vertical;height:70px;align-self:center}
 
-    /* ── PROGRESS BAR ── */
-    #progressBar{
-      position:absolute;bottom:0;left:0;right:0;height:3px;
-      background:rgba(255,255,255,0.06);z-index:1001;cursor:pointer;
-    }
-    #progressFill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .1s linear;pointer-events:none}
-    #progressThumb{
-      position:absolute;top:50%;width:12px;height:12px;border-radius:50%;
-      background:white;transform:translate(-50%,-50%);pointer-events:none;
-      box-shadow:0 0 6px rgba(79,163,255,.8);display:none;
-    }
-    #progressBar:hover #progressThumb{display:block}
+    #progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,.06);z-index:1001;cursor:pointer}
+    #progressFill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;pointer-events:none}
 
-    /* ── CHART PANEL ── */
-    #chartPanel{
-      position:absolute;bottom:3px;left:0;right:0;height:26%;
-      background:var(--surface);border-top:1px solid var(--border);
-      backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-      z-index:1000;display:flex;flex-direction:column;overflow:hidden;
-    }
-    #chartHandle{
-      height:24px;cursor:ns-resize;touch-action:none;flex-shrink:0;
-      display:flex;align-items:center;justify-content:center;
-      background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);
-    }
+    #chartPanel{position:absolute;bottom:4px;left:0;right:0;height:26%;background:var(--surface);border-top:1px solid var(--border);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);z-index:1000;display:flex;flex-direction:column;overflow:hidden}
+    #chartHandle{height:22px;cursor:ns-resize;touch-action:none;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
     #chartHandle::before{content:'';width:36px;height:3px;border-radius:2px;background:var(--text-dim)}
     #mainChart{flex:1;width:100%!important;height:100%!important}
 
-    /* ── DIALOGS ── */
     .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2900;display:none;align-items:center;justify-content:center}
     .dialog-overlay.open{display:flex}
-    .dialog-box{
-      background:#0d1520;border:1px solid var(--border);border-radius:18px;
-      padding:22px;width:min(92vw,370px);display:flex;flex-direction:column;gap:9px;
-      box-shadow:0 24px 64px rgba(0,0,0,.7);
-    }
+    .dialog-box{background:#0d1520;border:1px solid var(--border);border-radius:18px;padding:22px;width:min(92vw,370px);display:flex;flex-direction:column;gap:9px;box-shadow:0 24px 64px rgba(0,0,0,.7)}
     .dialog-box h3{font-size:1rem;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
-    .dialog-btn{
-      width:100%;padding:13px 15px;border-radius:10px;border:1px solid var(--border);
-      background:rgba(255,255,255,0.04);color:var(--text);font-family:var(--font-ui);
-      font-size:.95rem;font-weight:600;cursor:pointer;text-align:left;
-      transition:background .15s,border-color .15s;display:flex;align-items:center;gap:9px;
-    }
+    .dialog-btn{width:100%;padding:13px 15px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-family:var(--font-ui);font-size:.95rem;font-weight:600;cursor:pointer;text-align:left;transition:background .15s,border-color .15s;display:flex;align-items:center;gap:9px}
     .dialog-btn:hover{background:rgba(79,163,255,.1);border-color:var(--accent)}
     .dialog-btn.cancel{color:var(--text-dim);font-size:.85rem;justify-content:center}
     #serverFileList{max-height:42vh;overflow-y:auto;display:flex;flex-direction:column;gap:7px;scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
-    .server-file-row{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
-    .server-file-name{flex:1;font-size:.9rem;cursor:pointer;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .server-file-name:hover{color:var(--accent)}
-    .server-file-action{border:none;background:rgba(255,255,255,.07);color:var(--text-dim);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.75rem;transition:background .15s}
-    .server-file-action:hover{background:rgba(255,79,106,.2);color:var(--danger)}
+    .sfr{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
+    .sfn{flex:1;font-size:.9rem;cursor:pointer;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sfn:hover{color:var(--accent)}
+    .sfa{border:none;background:rgba(255,255,255,.07);color:var(--text-dim);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.75rem;transition:background .15s}
+    .sfa:hover{background:rgba(255,79,106,.2);color:var(--danger)}
 
-    /* ── TOOLTIP ── */
-    #tooltip{
-      position:absolute;pointer-events:none;background:var(--surface);
-      border:1px solid var(--border);border-radius:8px;padding:6px 10px;
-      font-family:var(--font-mono);font-size:10px;color:var(--text);
-      z-index:1500;display:none;line-height:1.6;
-    }
-
+    #keyHint{position:absolute;bottom:calc(26% + 16px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px 12px;font-size:9px;letter-spacing:.06em;color:var(--text-dim);pointer-events:none;opacity:0;transition:opacity .5s;z-index:1001;white-space:nowrap}
+    #keyHint.show{opacity:1}
     .cesium-viewer-toolbar,.cesium-widget-credits{display:none!important}
     #fileInput{display:none}
-
-    /* ── KEYBOARD HINT ── */
-    #keyHint{
-      position:absolute;bottom:calc(26% + 18px);left:50%;transform:translateX(-50%);
-      background:var(--surface);border:1px solid var(--border);border-radius:8px;
-      padding:4px 12px;font-size:9px;letter-spacing:.06em;color:var(--text-dim);
-      pointer-events:none;opacity:0;transition:opacity .5s;z-index:1001;white-space:nowrap;
-    }
-    #keyHint.show{opacity:1}
   </style>
 </head>
 <body>
 
 <div id="loadingBar"></div>
+<div id="loadingMsg">⏳ Berechne Route…</div>
 <div id="cesiumContainer"></div>
 
 <div id="hud">
   <div class="hud-title">✈ Flugspur</div>
-  <div class="hud-row"><span class="hud-label">Speed</span><span class="hud-val" id="infoSpeed">– km/h</span></div>
-  <div class="hud-row"><span class="hud-label">Höhe NN</span><span class="hud-val" id="infoAlt">– m</span></div>
-  <div class="hud-row"><span class="hud-label">Δ Start</span><span class="hud-val" id="infoRelAlt">– m</span></div>
-  <div class="hud-row"><span class="hud-label">Vario</span><span class="hud-val" id="infoVario">– m/s</span></div>
-  <div class="hud-row"><span class="hud-label">Strecke</span><span class="hud-val" id="infoDistance">– km</span></div>
-  <div class="hud-row"><span class="hud-label">Zeit</span><span class="hud-val" id="infoTime">–</span></div>
+  <div class="hud-row"><span class="hud-label">Speed</span><span class="hud-val" id="iSpeed">– km/h</span></div>
+  <div class="hud-row"><span class="hud-label">Höhe NN</span><span class="hud-val" id="iAlt">– m</span></div>
+  <div class="hud-row"><span class="hud-label">Δ Start</span><span class="hud-val" id="iRel">– m</span></div>
+  <div class="hud-row"><span class="hud-label">Vario</span><span class="hud-val" id="iVario">– m/s</span></div>
+  <div class="hud-row"><span class="hud-label">Strecke</span><span class="hud-val" id="iDist">– km</span></div>
+  <div class="hud-row"><span class="hud-label">Zeit</span><span class="hud-val" id="iTime">–</span></div>
 </div>
 
-<div id="camBadge">Hinter-Ansicht</div>
+<div id="camBadge"></div>
 <div id="followIndicator">● FOLGT</div>
 
 <div id="controls">
-  <input type="range" id="trailSlider" min="100" max="3000" value="2999" title="Spurlänge">
-  <button class="ctrl-btn" id="switchView" title="2D/3D wechseln">2D</button>
-  <button class="ctrl-btn" id="camModeBtn" title="Kamera-Modus">🎥</button>
-  <button class="ctrl-btn" id="openFile" title="Datei öffnen">📁</button>
-  <button class="ctrl-btn play-btn" id="togglePlayBtn" title="Play/Pause (Leertaste)">▶</button>
-  <button class="ctrl-btn" id="speedBtn" title="Wiedergabegeschwindigkeit">1×</button>
-  <button class="ctrl-btn active" id="toggleFollow" title="Kamera folgen">👁</button>
-  <button class="ctrl-btn" id="fullscreenBtn" title="Vollbild">⛶</button>
-  <button class="ctrl-btn" id="cutModeBtn" title="Zuschneiden">✂</button>
+  <input type="range" id="trailSlider" min="10" max="500" value="499" title="Spurlänge">
+  <button class="ctrl-btn" id="switchView">2D</button>
+  <button class="ctrl-btn" id="camModeBtn" title="Kamera (C)">🎥</button>
+  <button class="ctrl-btn" id="openFile">📁</button>
+  <button class="ctrl-btn play-btn" id="playBtn">▶</button>
+  <button class="ctrl-btn" id="speedBtn">1×</button>
+  <button class="ctrl-btn active" id="followBtn">👁</button>
+  <button class="ctrl-btn" id="fsBtn">⛶</button>
+  <button class="ctrl-btn" id="cutBtn">✂</button>
 </div>
 
 <input type="file" id="fileInput" accept=".kml">
-<div id="tooltip"></div>
-<div id="keyHint">LEERTASTE = Play/Pause · ◀▶ = Spulen · C = Kamera · F = Follow</div>
+<div id="keyHint">LEERTASTE=Play · ◀▶=±10s · ↑↓=±60s · C=Kamera · F=Follow</div>
 
-<div id="progressBar">
-  <div id="progressFill"></div>
-  <div id="progressThumb"></div>
-</div>
+<div id="progressBar"><div id="progressFill"></div></div>
 
 <div id="chartPanel">
   <div id="chartHandle"></div>
   <canvas id="mainChart"></canvas>
 </div>
 
-<!-- Dialogs -->
-<div class="dialog-overlay" id="fileOptionsOverlay">
+<div class="dialog-overlay" id="dFile">
   <div class="dialog-box">
     <h3>📂 Datei</h3>
-    <button class="dialog-btn" id="loadLocalBtn">💾 Lokal laden</button>
-    <button class="dialog-btn" id="loadServerBtn">☁ Vom Server laden</button>
-    <button class="dialog-btn" id="uploadServerBtn">⬆ Auf Server speichern</button>
-    <button class="dialog-btn" id="saveLocalBtn">⬇ Lokal speichern</button>
-    <button class="dialog-btn cancel" id="fileOptionsCancel">Abbrechen</button>
+    <button class="dialog-btn" id="dLoadLocal">💾 Lokal laden</button>
+    <button class="dialog-btn" id="dLoadServer">☁ Vom Server</button>
+    <button class="dialog-btn" id="dUpload">⬆ Auf Server speichern</button>
+    <button class="dialog-btn" id="dSaveLocal">⬇ Lokal speichern</button>
+    <button class="dialog-btn cancel" id="dFileCancel">Abbrechen</button>
   </div>
 </div>
-<div class="dialog-overlay" id="serverFileOverlay">
+<div class="dialog-overlay" id="dServer">
   <div class="dialog-box">
     <h3>☁ Server-Dateien</h3>
     <div id="serverFileList"></div>
-    <button class="dialog-btn cancel" id="serverFileCancel">Abbrechen</button>
+    <button class="dialog-btn cancel" id="dServerCancel">Abbrechen</button>
   </div>
 </div>
-<div class="dialog-overlay" id="cutUploadOverlay">
+<div class="dialog-overlay" id="dCutUpload">
   <div class="dialog-box">
-    <h3>✂ Zuschnitt speichern?</h3>
-    <p style="color:var(--text-dim);font-size:.85rem">Zugeschnittene Datei auf den Server hochladen?</p>
-    <button class="dialog-btn" id="cutUploadYes">✔ Ja, hochladen</button>
-    <button class="dialog-btn cancel" id="cutUploadNo">Nein, nur lokal</button>
+    <h3>✂ Speichern?</h3>
+    <p style="color:var(--text-dim);font-size:.85rem">Zugeschnittene Datei auf Server hochladen?</p>
+    <button class="dialog-btn" id="dCutYes">✔ Ja</button>
+    <button class="dialog-btn cancel" id="dCutNo">Nein, lokal</button>
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  CESIUM SETUP
-// ═══════════════════════════════════════════════════════════════
+'use strict';
+// ═══════════════════════════════════════════════════════════
+// CESIUM
+// ═══════════════════════════════════════════════════════════
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -249,745 +160,655 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
   fullscreenButton:false, homeButton:false, sceneModePicker:false,
   geocoder:false, navigationHelpButton:false,
   infoBox:false, selectionIndicator:false,
-  terrain: Cesium.Terrain.fromWorldTerrain()
+  terrain: Cesium.Terrain.fromWorldTerrain(),
+  // Disable MSAA for performance
+  msaaSamples: 1
 });
-const scene = viewer.scene;
+const scene  = viewer.scene;
 const camera = viewer.camera;
-const ctrl = scene.screenSpaceCameraController;
+const ctrl   = scene.screenSpaceCameraController;
 
-// Sensible camera controls
-ctrl.rotateRate  = 0.25;
-ctrl.zoomRate    = 0.35;
-ctrl.tiltRate    = 0.15;
-ctrl.minimumZoomDistance = 50;
+// Tune camera
+ctrl.rotateRate = 0.25; ctrl.zoomRate = 0.35; ctrl.tiltRate = 0.15;
+ctrl.minimumZoomDistance = 30;
 
-// Fly to user location on load
-navigator.geolocation.getCurrentPosition(pos => {
-  camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, (pos.coords.altitude||0)+1200),
-    duration: 6
-  });
-}, ()=>{});
+// Performance: reduce resolution on low-end
+scene.fog.enabled = false;
+scene.globe.showGroundAtmosphere = false;
+scene.highDynamicRange = false;
+scene.globe.enableLighting = false;
 
-// ═══════════════════════════════════════════════════════════════
-//  CONSTANTS & STATE
-// ═══════════════════════════════════════════════════════════════
-const ALT_OFFSET = 50;
+navigator.geolocation.getCurrentPosition(p => {
+  camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(p.coords.longitude, p.coords.latitude, 1500), duration: 5 });
+}, () => {});
 
-// Camera modes: 0=behind(chase), 1=cockpit, 2=free/overview
-const CAM_MODES   = ['Hinter-Ansicht','Cockpit','Freie Ansicht'];
-const CAM_OFFSETS = [
-  new Cesium.Cartesian3(0, -280, 80),   // behind
-  new Cesium.Cartesian3(0,   8, 2),     // cockpit
-  null                                   // free
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const ALT = 50; // altitude offset
+
+// coords[i] = { seconds, lon, lat, alt, distCum, pos3d }
+// pos3d is pre-computed Cartesian3
+let coords      = [];
+let allPos      = []; // flat Float64Array-backed Cartesian3 array, pre-built
+let trailLen    = 499; // index count (not seconds anymore!)
+let idx         = 0;
+let playing     = false;
+let speed       = 1;
+let followOn    = true;
+let camMode     = 0;   // 0=behind 1=cockpit 2=free
+let is3D        = false;
+let startAlt    = null;
+let origName    = null;
+let origKml     = null;
+let cutActive   = false;
+let userMoved   = false;
+let moveTimer   = null;
+let mainChart   = null;
+let rafId       = null;
+let lastTs      = null;
+let secAcc      = 0;
+
+// Reusable scratch objects – avoids GC pressure
+const _scratch3 = new Cesium.Cartesian3();
+const _scratchM = new Cesium.Matrix4();
+
+// Camera offsets per mode
+const CAM_OFF = [
+  new Cesium.Cartesian3(0, -250, 70),  // behind
+  new Cesium.Cartesian3(0,   6,  1),   // cockpit
+  null                                  // free
 ];
-let camMode = 0;
+const CAM_NAMES = ['Hinter-Ansicht','Cockpit','Freie Ansicht'];
 
-let fullCoords     = [];
-let animationIndex = 0;
-let isPlaying      = false;
-let speedFactor    = 1;
-let trailSeconds   = 3000;
-let followEnabled  = true;
-let is3D           = false;
-let startAltitude  = null;
-let originalFileName    = null;
-let originalKmlContent  = null;
-let cutModeActive       = false;
-let userManuallyMoved   = false;
-let manualMoveTimer     = null;
+// ═══════════════════════════════════════════════════════════
+// CESIUM ENTITIES – created once, updated by property mutation
+// ═══════════════════════════════════════════════════════════
 
-let movingEntity   = null;
-let ghostPolyline  = null; // full route dim
-let activePolyline = null; // trail bright
-
-let mainChart = null;
-let rafId     = null;
-let lastRafTs = null;
-let secAccum  = 0;
-
-// Smooth camera lerp
-let camTargetPos   = null;
-let camTargetHeading = null;
-
-// Quad shadow trail
-let quadEntities = [];
-const MAX_QUADS  = 50;
-let lastQuadIdx  = -1;
-
-// ═══════════════════════════════════════════════════════════════
-//  POLYLINES
-// ═══════════════════════════════════════════════════════════════
-// Ghost = full route, always visible but dim
-ghostPolyline = viewer.entities.add({
-  polyline:{
-    positions: new Cesium.CallbackProperty(()=>{
-      if(!fullCoords.length) return [];
-      return Cesium.Cartesian3.fromDegreesArrayHeights(
-        fullCoords.flatMap(p=>[p.lon,p.lat,p.alt+ALT_OFFSET])
-      );
-    },false),
-    width:2,
-    material:new Cesium.PolylineDashMaterialProperty({
-      color: Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.18),
-      dashLength:12
-    })
+// Ghost: full route, always dim. Updated once when file loads.
+const ghostPoly = viewer.entities.add({
+  polyline: {
+    positions: [],
+    width: 1.5,
+    material: Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.15)
   }
 });
 
-// Active trail
-activePolyline = viewer.entities.add({
-  polyline:{
-    positions: new Cesium.CallbackProperty(()=>{
-      if(!fullCoords.length||animationIndex<1) return [];
-      const t=fullCoords[animationIndex]?.seconds??0;
-      const minT=t-trailSeconds;
-      const trail=[];
-      for(let i=animationIndex;i>=0;i--){
-        if(fullCoords[i].seconds<minT) break;
-        trail.unshift(fullCoords[i]);
-      }
-      return Cesium.Cartesian3.fromDegreesArrayHeights(
-        trail.flatMap(p=>[p.lon,p.lat,p.alt+ALT_OFFSET])
-      );
-    },false),
-    width:5,
-    material:new Cesium.PolylineGlowMaterialProperty({
-      glowPower:0.18,
-      taperPower:0.5,
-      color:Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(1.0)
-    })
+// Trail: active segment. Updated each frame via positions array swap.
+// KEY OPTIMIZATION: use a plain ColorMaterialProperty (no glow = no shader overdraw)
+const trailPoly = viewer.entities.add({
+  polyline: {
+    positions: [],
+    width: 4,
+    material: Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.95)
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-//  KML PARSER
-// ═══════════════════════════════════════════════════════════════
-function parseKml(text){
-  const lines=text.split(/\r?\n/);
-  const raw=[];
-  let t=null;
-  for(let line of lines){
-    line=line.trim();
-    if(line.startsWith('<name>')){
-      const parts=line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
-      if(parts.length>=2){ const[h,m,s=0]=parts; t=h*3600+m*60+s; }
-    }
-    if(line.includes('<coordinates>')&&t!==null){
-      const cs=line.substring(line.indexOf('>')+1,line.indexOf('</coordinates>')).trim();
-      const[lon,lat,alt]=cs.split(',').map(Number);
-      if(!isNaN(lon)&&!isNaN(lat)&&!isNaN(alt)) raw.push({seconds:t,lon,lat,alt});
-    }
-  }
-  if(!raw.length) return[];
+// Moving model: position updated directly
+const falconPos = new Cesium.SampledPositionProperty();
+falconPos.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
 
-  const coords=[];
-  const STEPS=10;
-  for(let i=0;i<raw.length;i++){
-    if(i===0){coords.push({...raw[0],distCum:0});continue;}
-    const prev=raw[i-1],curr=raw[i];
-    for(let s=1;s<=STEPS;s++){
-      const f=s/STEPS;
-      const lon=prev.lon+(curr.lon-prev.lon)*f;
-      const lat=prev.lat+(curr.lat-prev.lat)*f;
-      const alt=prev.alt+(curr.alt-prev.alt)*f;
-      const seconds=prev.seconds+(curr.seconds-prev.seconds)*f;
-      const last=coords[coords.length-1];
-      const dx=(lon-last.lon)*111320*Math.cos(lat*Math.PI/180);
-      const dy=(lat-last.lat)*111320;
-      coords.push({seconds,lon,lat,alt,distCum:last.distCum+Math.sqrt(dx*dx+dy*dy)});
+// We'll use a plain entity with a CallbackProperty only for orientation
+// Position is set directly each frame (no new objects)
+let falconEntity = null;
+// We store last Cartesian3 and reuse it
+const falconCartesian = new Cesium.Cartesian3();
+
+// ═══════════════════════════════════════════════════════════
+// KML PARSER
+// ═══════════════════════════════════════════════════════════
+function parseKml(text) {
+  const raw = [];
+  let t = null;
+  for (let line of text.split(/\r?\n/)) {
+    line = line.trim();
+    if (line.startsWith('<name>')) {
+      const p = line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
+      if (p.length >= 2) t = p[0]*3600 + p[1]*60 + (p[2]||0);
+    }
+    if (line.includes('<coordinates>') && t !== null) {
+      const cs = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim();
+      const [lon,lat,alt] = cs.split(',').map(Number);
+      if (!isNaN(lon)&&!isNaN(lat)&&!isNaN(alt)) raw.push({seconds:t,lon,lat,alt});
     }
   }
-  return coords;
+  if (!raw.length) return [];
+
+  // Interpolate + pre-compute Cartesian3 + cumulative distance
+  const out = [];
+  const STEPS = 8; // slightly fewer = faster parse, still smooth
+  for (let i = 0; i < raw.length; i++) {
+    if (i === 0) {
+      const c = raw[0];
+      out.push({ ...c, distCum:0, pos3d: Cesium.Cartesian3.fromDegrees(c.lon,c.lat,c.alt+ALT) });
+      continue;
+    }
+    const prev = raw[i-1], curr = raw[i];
+    for (let s = 1; s <= STEPS; s++) {
+      const f = s/STEPS;
+      const lon = prev.lon + (curr.lon-prev.lon)*f;
+      const lat = prev.lat + (curr.lat-prev.lat)*f;
+      const alt = prev.alt + (curr.alt-prev.alt)*f;
+      const seconds = prev.seconds + (curr.seconds-prev.seconds)*f;
+      const last = out[out.length-1];
+      const dx = (lon-last.lon)*111320*Math.cos(lat*Math.PI/180);
+      const dy = (lat-last.lat)*111320;
+      out.push({ seconds, lon, lat, alt,
+        distCum: last.distCum + Math.sqrt(dx*dx+dy*dy),
+        pos3d: Cesium.Cartesian3.fromDegrees(lon,lat,alt+ALT)
+      });
+    }
+  }
+  return out;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  LOAD KML
-// ═══════════════════════════════════════════════════════════════
-function loadKmlText(text,filename){
-  originalKmlContent=text; originalFileName=filename;
-  fullCoords=parseKml(text);
-  if(!fullCoords.length){alert('Keine gültigen Koordinaten.');return;}
-  animationIndex=0; startAltitude=null;
-  isPlaying=false; lastRafTs=null; secAccum=0;
-  cancelAnimationFrame(rafId);
-  document.getElementById('togglePlayBtn').textContent='▶';
-  quadEntities.forEach(e=>viewer.entities.remove(e));
-  quadEntities=[]; lastQuadIdx=-1;
-  updatePoint(0);
-  buildChart();
-  camera.flyTo({
-    destination:Cesium.Cartesian3.fromDegrees(fullCoords[0].lon,fullCoords[0].lat,fullCoords[0].alt+2500),
-    duration:2.5
-  });
-  showKeyHint();
+// ═══════════════════════════════════════════════════════════
+// LOAD
+// ═══════════════════════════════════════════════════════════
+function loadKmlText(text, name) {
+  origKml = text; origName = name;
+  showMsg('Berechne Route…');
+
+  // Parse in next tick so UI can update
+  setTimeout(() => {
+    coords = parseKml(text);
+    if (!coords.length) { hideMsg(); alert('Keine Koordinaten.'); return; }
+
+    // Pre-build full positions array for ghost polyline (done once)
+    allPos = coords.map(c => c.pos3d);
+    ghostPoly.polyline.positions = allPos;
+
+    idx = 0; startAlt = null;
+    playing = false; lastTs = null; secAcc = 0;
+    cancelAnimationFrame(rafId);
+    document.getElementById('playBtn').textContent = '▶';
+
+    buildFalcon();
+    buildChart();
+    hideMsg();
+    updateFrame(0);
+    camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(coords[0].lon, coords[0].lat, coords[0].alt+2500),
+      duration: 2
+    });
+    showKeyHint();
+  }, 20);
 }
 
-async function loadFromServer(url){
+async function loadFromServer(url) {
   showLoading(true);
-  try{
-    const res=await fetch(url);
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    loadKmlText(await res.text(),url.split('/').pop());
-  }catch(e){alert('Fehler: '+e.message);}
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    loadKmlText(await r.text(), url.split('/').pop());
+  } catch(e) { alert('Fehler: '+e.message); }
   showLoading(false);
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  UPDATE POINT
-// ═══════════════════════════════════════════════════════════════
-function updatePoint(idx){
-  animationIndex=idx;
-  const p=fullCoords[idx];
-  const pos=Cesium.Cartesian3.fromDegrees(p.lon,p.lat,p.alt+ALT_OFFSET);
+// ═══════════════════════════════════════════════════════════
+// FALCON ENTITY (created once per file load)
+// ═══════════════════════════════════════════════════════════
+function buildFalcon() {
+  if (falconEntity) viewer.entities.remove(falconEntity);
+  Cesium.Cartesian3.clone(coords[0].pos3d, falconCartesian);
+  falconEntity = viewer.entities.add({
+    position: new Cesium.CallbackProperty(() => falconCartesian, false),
+    orientation: new Cesium.CallbackProperty(() => computeOrientation(), false),
+    model: {
+      uri: 'https://benne1994.github.io/Flugroute/falcon_flying.glb',
+      scale: 0.9, minimumPixelSize: 32, maximumScale: 250
+    }
+  });
+}
 
-  // Moving entity
-  if(!movingEntity){
-    movingEntity=viewer.entities.add({
-      position:pos,
-      orientation:makeOrientation(),
-      model:{
-        uri:'https://benne1994.github.io/Flugroute/falcon_flying.glb',
-        scale:0.9, minimumPixelSize:32, maximumScale:250
-      }
-    });
-  } else {
-    movingEntity.position=new Cesium.ConstantPositionProperty(pos);
-  }
+// Compute orientation from current direction – reuses scratch objects
+const _fromC = new Cesium.Cartesian3();
+const _toC   = new Cesium.Cartesian3();
+const _dirC  = new Cesium.Cartesian3();
+const _rightC= new Cesium.Cartesian3();
+const _tupC  = new Cesium.Cartesian3();
+const _rotM  = new Cesium.Matrix3();
+const _xRot  = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(-90));
+const _qBase = new Cesium.Quaternion();
+const _qOut  = new Cesium.Quaternion();
 
-  // Camera follow (only if not manually moved)
-  if(followEnabled&&!userManuallyMoved) applyFollow(p,pos);
+function computeOrientation() {
+  if (idx < 1 || idx >= coords.length) return Cesium.Quaternion.IDENTITY;
+  const prev = coords[Math.max(0,idx-1)], curr = coords[idx];
+  Cesium.Cartesian3.subtract(curr.pos3d, prev.pos3d, _dirC);
+  if (Cesium.Cartesian3.magnitudeSquared(_dirC) < 1e-10) return Cesium.Quaternion.IDENTITY;
+  Cesium.Cartesian3.normalize(_dirC, _dirC);
+  Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, _dirC, _rightC);
+  Cesium.Cartesian3.normalize(_rightC, _rightC);
+  Cesium.Cartesian3.cross(_dirC, _rightC, _tupC);
+  Cesium.Matrix3.setColumn(_rotM, 0, _rightC, _rotM);
+  Cesium.Matrix3.setColumn(_rotM, 1, _tupC,   _rotM);
+  Cesium.Matrix3.setColumn(_rotM, 2, _dirC,   _rotM);
+  Cesium.Quaternion.fromRotationMatrix(_rotM, _qBase);
+  return Cesium.Quaternion.multiply(_qBase, _xRot, _qOut);
+}
 
-  // HUD
-  if(startAltitude===null) startAltitude=p.alt;
-  let speed=0,vario=0;
-  if(idx>0){
-    const prev=fullCoords[idx-1];
-    const dt=p.seconds-prev.seconds;
-    if(dt>0){
-      const dx=(p.lon-prev.lon)*111320*Math.cos(p.lat*Math.PI/180);
-      const dy=(p.lat-prev.lat)*111320;
-      speed=(Math.sqrt(dx*dx+dy*dy)/dt)*3.6;
-      vario=(p.alt-prev.alt)/dt;
+// ═══════════════════════════════════════════════════════════
+// UPDATE FRAME – called on index change (not every RAF!)
+// ═══════════════════════════════════════════════════════════
+// Trail slice: instead of filtering, just slice the pre-built array
+let trailStart = 0;
+
+function updateFrame(newIdx) {
+  idx = newIdx;
+  const p = coords[idx];
+
+  // ── Falcon position (mutate in-place, no GC) ──
+  Cesium.Cartesian3.clone(p.pos3d, falconCartesian);
+
+  // ── Trail: slice pre-built array ──
+  trailStart = Math.max(0, idx - trailLen);
+  // positions is a direct reference, update is a simple slice (no map/flatMap)
+  trailPoly.polyline.positions = allPos.slice(trailStart, idx+1);
+
+  // ── Camera ──
+  if (followOn && !userMoved && camMode !== 2) applyFollow(p);
+
+  // ── HUD ──
+  if (startAlt === null) startAlt = p.alt;
+  let spd = 0, vario = 0;
+  if (idx > 0) {
+    const prev = coords[idx-1];
+    const dt = p.seconds - prev.seconds;
+    if (dt > 0) {
+      const dx = (p.lon-prev.lon)*111320*Math.cos(p.lat*Math.PI/180);
+      const dy = (p.lat-prev.lat)*111320;
+      spd   = (Math.sqrt(dx*dx+dy*dy)/dt)*3.6;
+      vario = (p.alt-prev.alt)/dt;
     }
   }
-  document.getElementById('infoSpeed').textContent    =speed.toFixed(1)+' km/h';
-  document.getElementById('infoAlt').textContent      =p.alt.toFixed(1)+' m';
-  document.getElementById('infoRelAlt').textContent   =(p.alt-startAltitude).toFixed(1)+' m';
-  document.getElementById('infoDistance').textContent =((p.distCum||0)/1000).toFixed(2)+' km';
-  document.getElementById('infoTime').textContent     =fmtTime(p.seconds);
-  const vEl=document.getElementById('infoVario');
-  vEl.textContent=vario.toFixed(2)+' m/s';
-  vEl.className='hud-val'+(vario>0.2?' up':vario<-0.2?' dn':'');
+  document.getElementById('iSpeed').textContent = spd.toFixed(1)+' km/h';
+  document.getElementById('iAlt').textContent   = p.alt.toFixed(1)+' m';
+  document.getElementById('iRel').textContent   = (p.alt-startAlt).toFixed(1)+' m';
+  document.getElementById('iDist').textContent  = ((p.distCum||0)/1000).toFixed(2)+' km';
+  document.getElementById('iTime').textContent  = fmtT(p.seconds);
+  const ve = document.getElementById('iVario');
+  ve.textContent = vario.toFixed(2)+' m/s';
+  ve.className   = 'hud-val'+(vario>0.2?' up':vario<-0.2?' dn':'');
 
-  // Progress bar
-  const pct=fullCoords.length>1?(idx/(fullCoords.length-1))*100:0;
-  document.getElementById('progressFill').style.width=pct+'%';
-  document.getElementById('progressThumb').style.left=pct+'%';
+  // ── Progress ──
+  const pct = coords.length > 1 ? (idx/(coords.length-1))*100 : 0;
+  document.getElementById('progressFill').style.width = pct+'%';
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  ORIENTATION (falcon direction)
-// ═══════════════════════════════════════════════════════════════
-function makeOrientation(){
-  return new Cesium.CallbackProperty(()=>{
-    if(animationIndex<1) return Cesium.Quaternion.IDENTITY;
-    const prev=fullCoords[Math.max(0,animationIndex-1)];
-    const curr=fullCoords[animationIndex];
-    const from=Cesium.Cartesian3.fromDegrees(prev.lon,prev.lat,prev.alt+ALT_OFFSET);
-    const to  =Cesium.Cartesian3.fromDegrees(curr.lon,curr.lat,curr.alt+ALT_OFFSET);
-    const dir =Cesium.Cartesian3.subtract(to,from,new Cesium.Cartesian3());
-    if(Cesium.Cartesian3.magnitude(dir)<1e-6) return Cesium.Quaternion.IDENTITY;
-    Cesium.Cartesian3.normalize(dir,dir);
-    const up   =Cesium.Cartesian3.UNIT_Z;
-    const right=Cesium.Cartesian3.normalize(Cesium.Cartesian3.cross(up,dir,new Cesium.Cartesian3()),new Cesium.Cartesian3());
-    const tup  =Cesium.Cartesian3.cross(dir,right,new Cesium.Cartesian3());
-    const rot  =new Cesium.Matrix3();
-    Cesium.Matrix3.setColumn(rot,0,right,rot);
-    Cesium.Matrix3.setColumn(rot,1,tup,rot);
-    Cesium.Matrix3.setColumn(rot,2,dir,rot);
-    const base=Cesium.Quaternion.fromRotationMatrix(rot);
-    const xR  =Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X,Cesium.Math.toRadians(-90));
-    return Cesium.Quaternion.multiply(base,xR,new Cesium.Quaternion());
-  },false);
-}
+// ═══════════════════════════════════════════════════════════
+// CAMERA FOLLOW
+// ═══════════════════════════════════════════════════════════
+const _tfm = new Cesium.Matrix4();
 
-// ═══════════════════════════════════════════════════════════════
-//  CAMERA FOLLOW – smooth lerp
-// ═══════════════════════════════════════════════════════════════
-function applyFollow(p,pos){
-  if(scene.mode===Cesium.SceneMode.SCENE2D){
-    const h=camera.positionCartographic.height;
-    camera.setView({destination:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,h)});
+function applyFollow(p) {
+  if (scene.mode === Cesium.SceneMode.SCENE2D) {
+    const h = camera.positionCartographic.height;
+    camera.setView({ destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, h) });
     return;
   }
-  if(camMode===2) return; // free mode – don't touch camera
-
-  const offset=CAM_OFFSETS[camMode];
-  const tf=Cesium.Transforms.eastNorthUpToFixedFrame(pos);
-
-  if(camMode===0){
-    // Behind: smooth lerp toward target
-    camera.lookAtTransform(tf,offset);
-  } else if(camMode===1){
-    // Cockpit: camera sits inside the model
-    camera.lookAtTransform(tf,offset);
-  }
+  Cesium.Transforms.eastNorthUpToFixedFrame(p.pos3d, undefined, _tfm);
+  camera.lookAtTransform(_tfm, CAM_OFF[camMode]);
 }
 
-function stopFollow(){
-  camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-}
+function stopFollow() { camera.lookAtTransform(Cesium.Matrix4.IDENTITY); }
 
-// Detect manual camera movement → temporarily disable follow
-scene.preUpdate.addEventListener(()=>{
-  if(!followEnabled||camMode===2) return;
-  // CesiumJS sets isMoving on the controller when user drags
+// Pause follow on user drag, resume after 3s
+['pointerdown'].forEach(ev => {
+  scene.canvas.addEventListener(ev, () => {
+    if (!followOn) return;
+    userMoved = true;
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => {
+      userMoved = false;
+      if (followOn && coords.length && camMode !== 2) applyFollow(coords[idx]);
+    }, 3000);
+  }, { passive:true });
 });
 
-// Listen for user input to pause follow
-['mousedown','touchstart','pointerdown'].forEach(ev=>{
-  viewer.scene.canvas.addEventListener(ev,()=>{
-    if(!followEnabled) return;
-    userManuallyMoved=true;
-    clearTimeout(manualMoveTimer);
-    // Re-engage follow after 3s of no input
-    manualMoveTimer=setTimeout(()=>{
-      userManuallyMoved=false;
-      if(followEnabled&&fullCoords.length)
-        applyFollow(fullCoords[animationIndex],
-          Cesium.Cartesian3.fromDegrees(fullCoords[animationIndex].lon,
-            fullCoords[animationIndex].lat,fullCoords[animationIndex].alt+ALT_OFFSET));
-    },3000);
-  },{passive:true});
-});
+// ═══════════════════════════════════════════════════════════
+// rAF LOOP – only calls updateFrame when index actually changes
+// ═══════════════════════════════════════════════════════════
+function rafLoop(ts) {
+  if (!playing) return;
+  if (lastTs === null) lastTs = ts;
+  const wall = (ts - lastTs) / 1000;
+  lastTs = ts;
+  secAcc += wall * speed;
 
-// ═══════════════════════════════════════════════════════════════
-//  CAMERA MODE CYCLE
-// ═══════════════════════════════════════════════════════════════
-function cycleCamMode(){
-  camMode=(camMode+1)%3;
-  if(camMode===2){
-    stopFollow();
-    ctrl.enableInputs=true;
-  } else {
-    ctrl.enableInputs=true;
+  const startSec = coords[idx]?.seconds ?? 0;
+  const target   = startSec + secAcc;
+
+  // Binary-search the target index (O(log n) instead of O(n))
+  let lo = idx, hi = coords.length - 1, ni = idx;
+  while (lo <= hi) {
+    const mid = (lo+hi)>>1;
+    if (coords[mid].seconds <= target) { ni = mid; lo = mid+1; }
+    else hi = mid-1;
   }
-  showCamBadge(CAM_MODES[camMode]);
-  if(fullCoords.length&&camMode!==2) {
-    userManuallyMoved=false;
-    applyFollow(fullCoords[animationIndex],
-      Cesium.Cartesian3.fromDegrees(fullCoords[animationIndex].lon,
-        fullCoords[animationIndex].lat,fullCoords[animationIndex].alt+ALT_OFFSET));
+
+  if (ni !== idx) {
+    secAcc -= (coords[ni].seconds - startSec);
+    updateFrame(ni);
+    updateChartMarker();
   }
+
+  if (idx >= coords.length-1) {
+    playing = false;
+    document.getElementById('playBtn').textContent = '▶';
+    return;
+  }
+  rafId = requestAnimationFrame(rafLoop);
 }
 
-function showCamBadge(text){
-  const b=document.getElementById('camBadge');
-  b.textContent=text; b.classList.add('show');
+function startPlay() {
+  if (!coords.length) return;
+  playing = true; lastTs = null; secAcc = 0;
+  rafId = requestAnimationFrame(rafLoop);
+  document.getElementById('playBtn').textContent = '⏸';
+}
+function pausePlay() {
+  playing = false; cancelAnimationFrame(rafId);
+  document.getElementById('playBtn').textContent = '▶';
+}
+function scrub(secs) {
+  if (!coords.length) return;
+  const target = coords[idx].seconds + secs;
+  let ni = idx;
+  if (secs > 0) { while(ni < coords.length-1 && coords[ni].seconds < target) ni++; }
+  else          { while(ni > 0              && coords[ni].seconds > target) ni--; }
+  pausePlay(); updateFrame(ni); updateChartMarker();
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMERA MODE
+// ═══════════════════════════════════════════════════════════
+function cycleCam() {
+  camMode = (camMode+1)%3;
+  if (camMode !== 2 && coords.length) { userMoved=false; applyFollow(coords[idx]); }
+  else if (camMode === 2) stopFollow();
+  showBadge(CAM_NAMES[camMode]);
+}
+function showBadge(t) {
+  const b=document.getElementById('camBadge'); b.textContent=t; b.classList.add('show');
   setTimeout(()=>b.classList.remove('show'),2200);
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  VERTICAL QUADS
-// ═══════════════════════════════════════════════════════════════
-async function maybeAddQuad(idx){
-  if(idx<=0||idx===lastQuadIdx) return;
-  lastQuadIdx=idx;
-  const p1=fullCoords[idx-1],p2=fullCoords[idx];
-  const cartos=[
-    Cesium.Cartographic.fromDegrees(p1.lon,p1.lat),
-    Cesium.Cartographic.fromDegrees(p2.lon,p2.lat)
-  ];
-  try{
-    const up=await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider,cartos);
-    const g1=up[0].height??0, g2=up[1].height??0;
-    const top1  =Cesium.Cartesian3.fromDegrees(p1.lon,p1.lat,p1.alt+ALT_OFFSET);
-    const top2  =Cesium.Cartesian3.fromDegrees(p2.lon,p2.lat,p2.alt+ALT_OFFSET);
-    const gnd1  =Cesium.Cartesian3.fromDegrees(p1.lon,p1.lat,g1);
-    const gnd2  =Cesium.Cartesian3.fromDegrees(p2.lon,p2.lat,g2);
-    const ent=viewer.entities.add({
-      polygon:{
-        hierarchy:new Cesium.PolygonHierarchy([top1,top2,gnd2,gnd1]),
-        material:Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.10),
-        perPositionHeight:true
-      }
-    });
-    quadEntities.push(ent);
-    quadEntities.forEach((e,i)=>{
-      const a=0.04+(i/quadEntities.length)*0.18;
-      e.polygon.material=Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(a);
-    });
-    if(quadEntities.length>MAX_QUADS) viewer.entities.remove(quadEntities.shift());
-  }catch(_){}
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  rAF ANIMATION LOOP
-// ═══════════════════════════════════════════════════════════════
-function rafLoop(ts){
-  if(!isPlaying) return;
-  if(lastRafTs===null) lastRafTs=ts;
-  const wallDt=(ts-lastRafTs)/1000;
-  lastRafTs=ts;
-  secAccum+=wallDt*speedFactor;
-
-  const startSec=fullCoords[animationIndex]?.seconds??0;
-  const targetSec=startSec+secAccum;
-  let newIdx=animationIndex;
-  while(newIdx<fullCoords.length-1&&fullCoords[newIdx+1].seconds<=targetSec) newIdx++;
-
-  if(newIdx!==animationIndex){
-    secAccum-=(fullCoords[newIdx].seconds-startSec);
-    updatePoint(newIdx);
-    updateChartMarker();
-    if(newIdx%5===0) maybeAddQuad(newIdx);
-  }
-
-  if(animationIndex>=fullCoords.length-1){
-    isPlaying=false;
-    document.getElementById('togglePlayBtn').textContent='▶';
-    return;
-  }
-  rafId=requestAnimationFrame(rafLoop);
-}
-
-function startAnimation(){
-  if(!fullCoords.length) return;
-  isPlaying=true; lastRafTs=null; secAccum=0;
-  rafId=requestAnimationFrame(rafLoop);
-  document.getElementById('togglePlayBtn').textContent='⏸';
-}
-function pauseAnimation(){
-  isPlaying=false; cancelAnimationFrame(rafId);
-  document.getElementById('togglePlayBtn').textContent='▶';
-}
-
-// Scrub by N seconds
-function scrub(seconds){
-  if(!fullCoords.length) return;
-  const cur=fullCoords[animationIndex].seconds;
-  const target=cur+seconds;
-  let ni=animationIndex;
-  if(seconds>0){ while(ni<fullCoords.length-1&&fullCoords[ni].seconds<target) ni++; }
-  else          { while(ni>0&&fullCoords[ni].seconds>target) ni--; }
-  pauseAnimation();
-  updatePoint(ni);
-  updateChartMarker();
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  CHART
-// ═══════════════════════════════════════════════════════════════
-function buildChart(){
-  const ctx=document.getElementById('mainChart').getContext('2d');
-  const seconds=fullCoords.map(p=>p.seconds);
-  const alts   =fullCoords.map(p=>p.alt);
-  const speeds =fullCoords.map((p,i)=>{
-    if(i===0) return 0;
-    const prev=fullCoords[i-1],dt=p.seconds-prev.seconds;
+// ═══════════════════════════════════════════════════════════
+// CHART
+// ═══════════════════════════════════════════════════════════
+function buildChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  const seconds = coords.map(c=>c.seconds);
+  const alts    = coords.map(c=>c.alt);
+  const speeds  = coords.map((c,i)=>{
+    if(!i) return 0;
+    const prev=coords[i-1], dt=c.seconds-prev.seconds;
     if(dt<=0) return 0;
-    const dx=(p.lon-prev.lon)*111320*Math.cos(p.lat*Math.PI/180);
-    const dy=(p.lat-prev.lat)*111320;
+    const dx=(c.lon-prev.lon)*111320*Math.cos(c.lat*Math.PI/180);
+    const dy=(c.lat-prev.lat)*111320;
     return(Math.sqrt(dx*dx+dy*dy)/dt)*3.6;
   });
-  if(mainChart) mainChart.destroy();
-  mainChart=new Chart(ctx,{
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(ctx, {
     type:'line',
-    data:{
-      labels:seconds,
+    data:{ labels:seconds,
       datasets:[
         {label:'Höhe (m)',data:alts,borderColor:'#4fa3ff',borderWidth:1.5,
-         backgroundColor:'rgba(79,163,255,0.1)',fill:true,yAxisID:'y1',pointRadius:0,tension:0.3},
+         backgroundColor:'rgba(79,163,255,.1)',fill:true,yAxisID:'y1',pointRadius:0,tension:.3},
         {label:'Speed (km/h)',data:speeds,borderColor:'#00e5a0',borderWidth:1.5,
-         backgroundColor:'transparent',fill:false,yAxisID:'y2',pointRadius:0,tension:0.3}
+         fill:false,yAxisID:'y2',pointRadius:0,tension:.3}
       ]
     },
     options:{
-      responsive:true,maintainAspectRatio:false,animation:false,
+      responsive:true, maintainAspectRatio:false, animation:false,
       plugins:{
         legend:{labels:{color:'#6a88aa',font:{family:'Rajdhani',size:11},boxWidth:12}},
-        annotation:{
-          annotations:{
-            cursor:{type:'line',xMin:seconds[0],xMax:seconds[0],
-              borderColor:'#ff4f6a',borderWidth:2,
-              label:{display:true,content:()=>fmtTime(fullCoords[animationIndex]?.seconds??0),
-                backgroundColor:'#ff4f6a',color:'#fff',
-                font:{family:'JetBrains Mono',size:10},position:'start',padding:4}
-            },
-            cutStart:{type:'line',xMin:seconds[0],xMax:seconds[0],
-              borderColor:'#4fa3ff',borderWidth:2,display:false,
-              label:{display:true,content:'Start',backgroundColor:'#4fa3ff',color:'#fff'}},
-            cutEnd:{type:'line',xMin:seconds.at(-1),xMax:seconds.at(-1),
-              borderColor:'#00e5a0',borderWidth:2,display:false,
-              label:{display:true,content:'Ende',backgroundColor:'#00e5a0',color:'#fff'}}
-          }
-        }
+        annotation:{annotations:{
+          cursor:{type:'line',xMin:seconds[0],xMax:seconds[0],borderColor:'#ff4f6a',borderWidth:2,
+            label:{display:true,content:()=>fmtT(coords[idx]?.seconds??0),
+              backgroundColor:'#ff4f6a',color:'#fff',font:{family:'JetBrains Mono',size:10},position:'start',padding:4}},
+          cutStart:{type:'line',xMin:seconds[0],xMax:seconds[0],borderColor:'#4fa3ff',borderWidth:2,display:false,
+            label:{display:true,content:'Start',backgroundColor:'#4fa3ff',color:'#fff'}},
+          cutEnd:{type:'line',xMin:seconds.at(-1),xMax:seconds.at(-1),borderColor:'#00e5a0',borderWidth:2,display:false,
+            label:{display:true,content:'Ende',backgroundColor:'#00e5a0',color:'#fff'}}
+        }}
       },
       onClick:(ev)=>{
         const pts=mainChart.getElementsAtEventForMode(ev,'nearest',{intersect:false},false);
-        if(pts.length){pauseAnimation();updatePoint(pts[0].index);updateChartMarker();}
+        if(pts.length){pausePlay();updateFrame(pts[0].index);updateChartMarker();}
       },
       scales:{
-        x:{type:'linear',
-          ticks:{color:'#6a88aa',font:{family:'JetBrains Mono',size:9},callback:v=>fmtTime(v),maxTicksLimit:8},
-          grid:{color:'rgba(255,255,255,0.04)'}},
-        y1:{type:'linear',position:'left',
-          title:{display:true,text:'Höhe (m)',color:'#4fa3ff',font:{size:10}},
-          ticks:{color:'#4fa3ff',font:{size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
-        y2:{type:'linear',position:'right',
-          title:{display:true,text:'km/h',color:'#00e5a0',font:{size:10}},
-          ticks:{color:'#00e5a0',font:{size:9}},grid:{drawOnChartArea:false}}
+        x:{type:'linear',ticks:{color:'#6a88aa',font:{family:'JetBrains Mono',size:9},callback:v=>fmtT(v),maxTicksLimit:8},grid:{color:'rgba(255,255,255,.04)'}},
+        y1:{type:'linear',position:'left',title:{display:true,text:'Höhe (m)',color:'#4fa3ff',font:{size:10}},ticks:{color:'#4fa3ff',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
+        y2:{type:'linear',position:'right',title:{display:true,text:'km/h',color:'#00e5a0',font:{size:10}},ticks:{color:'#00e5a0',font:{size:9}},grid:{drawOnChartArea:false}}
       }
     }
   });
 }
 
-function updateChartMarker(){
-  if(!mainChart||!fullCoords.length) return;
-  const s=fullCoords[animationIndex]?.seconds??0;
+function updateChartMarker() {
+  if (!mainChart||!coords.length) return;
   const a=mainChart.options.plugins.annotation.annotations.cursor;
-  a.xMin=a.xMax=s; mainChart.update('none');
+  a.xMin=a.xMax=coords[idx]?.seconds??0;
+  mainChart.update('none');
 }
 
-// Touch drag on chart for cut markers
-let draggingCut=null;
+// Touch drag on chart
+let dragCut=null;
 document.getElementById('mainChart').addEventListener('touchstart',e=>{
-  if(!cutModeActive||!mainChart) return;
+  if(!cutActive||!mainChart) return;
   const x=e.touches[0].clientX-mainChart.canvas.getBoundingClientRect().left;
-  const ann=mainChart.options.plugins.annotation.annotations;
-  const sp=mainChart.scales.x.getPixelForValue(ann.cutStart.xMin);
-  const ep=mainChart.scales.x.getPixelForValue(ann.cutEnd.xMin);
-  draggingCut=Math.abs(x-sp)<24?'start':Math.abs(x-ep)<24?'end':null;
+  const a=mainChart.options.plugins.annotation.annotations;
+  const sp=mainChart.scales.x.getPixelForValue(a.cutStart.xMin);
+  const ep=mainChart.scales.x.getPixelForValue(a.cutEnd.xMin);
+  dragCut=Math.abs(x-sp)<28?'start':Math.abs(x-ep)<28?'end':null;
 },{passive:true});
 document.addEventListener('touchmove',e=>{
-  if(!draggingCut||!mainChart) return;
+  if(!dragCut||!mainChart) return;
   const x=e.touches[0].clientX-mainChart.canvas.getBoundingClientRect().left;
   const t=mainChart.scales.x.getValueForPixel(x);
-  const key=draggingCut==='start'?'cutStart':'cutEnd';
-  mainChart.options.plugins.annotation.annotations[key].xMin=t;
-  mainChart.options.plugins.annotation.annotations[key].xMax=t;
+  const k=dragCut==='start'?'cutStart':'cutEnd';
+  mainChart.options.plugins.annotation.annotations[k].xMin=t;
+  mainChart.options.plugins.annotation.annotations[k].xMax=t;
   mainChart.update('none');
 },{passive:true});
-document.addEventListener('touchend',()=>{draggingCut=null;});
+document.addEventListener('touchend',()=>dragCut=null);
 
-// ═══════════════════════════════════════════════════════════════
-//  CUT MODE
-// ═══════════════════════════════════════════════════════════════
-function activateCutMode(){
-  if(!mainChart||!fullCoords.length) return;
-  cutModeActive=true;
-  document.getElementById('cutModeBtn').classList.add('active');
-  const ann=mainChart.options.plugins.annotation.annotations;
-  const s=fullCoords.map(p=>p.seconds);
-  ann.cutStart.display=ann.cutEnd.display=true;
-  ann.cutStart.xMin=ann.cutStart.xMax=s[Math.floor(s.length*.1)];
-  ann.cutEnd.xMin  =ann.cutEnd.xMax  =s[Math.floor(s.length*.9)];
+// ═══════════════════════════════════════════════════════════
+// CUT MODE
+// ═══════════════════════════════════════════════════════════
+function activateCut() {
+  if(!mainChart||!coords.length) return;
+  cutActive=true; document.getElementById('cutBtn').classList.add('active');
+  const a=mainChart.options.plugins.annotation.annotations;
+  const s=coords.map(c=>c.seconds);
+  a.cutStart.display=a.cutEnd.display=true;
+  a.cutStart.xMin=a.cutStart.xMax=s[Math.floor(s.length*.1)];
+  a.cutEnd.xMin  =a.cutEnd.xMax  =s[Math.floor(s.length*.9)];
   mainChart.update('none');
 }
-function applyCut(){
-  if(!cutModeActive||!mainChart) return;
-  const ann=mainChart.options.plugins.annotation.annotations;
-  const t0=ann.cutStart.xMin,t1=ann.cutEnd.xMin;
-  fullCoords=fullCoords.filter(p=>p.seconds>=t0&&p.seconds<=t1);
-  if(!fullCoords.length){alert('Kein Bereich übrig.');return;}
-  startAltitude=null; animationIndex=0;
-  cutModeActive=false;
-  document.getElementById('cutModeBtn').classList.remove('active');
-  buildChart(); updatePoint(0);
-  document.getElementById('cutUploadOverlay').classList.add('open');
+function applyCut() {
+  if(!cutActive||!mainChart) return;
+  const a=mainChart.options.plugins.annotation.annotations;
+  const t0=a.cutStart.xMin, t1=a.cutEnd.xMin;
+  coords=coords.filter(c=>c.seconds>=t0&&c.seconds<=t1);
+  if(!coords.length){alert('Kein Bereich.');return;}
+  allPos=coords.map(c=>c.pos3d);
+  ghostPoly.polyline.positions=allPos;
+  startAlt=null; idx=0; cutActive=false;
+  document.getElementById('cutBtn').classList.remove('active');
+  buildChart(); updateFrame(0);
+  document.getElementById('dCutUpload').classList.add('open');
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  PROGRESS BAR CLICK
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// PROGRESS BAR
+// ═══════════════════════════════════════════════════════════
 document.getElementById('progressBar').addEventListener('click',e=>{
-  if(!fullCoords.length) return;
-  const pct=e.offsetX/e.currentTarget.offsetWidth;
-  const ni=Math.round(pct*(fullCoords.length-1));
-  pauseAnimation(); updatePoint(ni); updateChartMarker();
+  if(!coords.length) return;
+  const ni=Math.round((e.offsetX/e.currentTarget.offsetWidth)*(coords.length-1));
+  pausePlay(); updateFrame(ni); updateChartMarker();
 });
 
-// ═══════════════════════════════════════════════════════════════
-//  SUPABASE
-// ═══════════════════════════════════════════════════════════════
-async function listSupabaseFiles(){
-  const list=document.getElementById('serverFileList');
-  list.innerHTML='<p style="color:var(--text-dim);font-size:.85rem;padding:8px">Lade…</p>';
+// ═══════════════════════════════════════════════════════════
+// TRAIL SLIDER – now controls index count, not seconds
+// ═══════════════════════════════════════════════════════════
+document.getElementById('trailSlider').oninput=e=>{trailLen=parseInt(e.target.value);};
+
+// ═══════════════════════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════════════════════
+async function listFiles() {
+  const L=document.getElementById('serverFileList');
+  L.innerHTML='<p style="color:var(--text-dim);font-size:.85rem;padding:8px">Lade…</p>';
   const{data,error}=await supabase.storage.from('flugspuren').list();
-  if(error){list.innerHTML='<p style="color:var(--danger)">Fehler: '+error.message+'</p>';return;}
-  list.innerHTML='';
-  (data||[]).forEach(file=>{
-    const row=document.createElement('div'); row.className='server-file-row';
-    const name=document.createElement('span'); name.className='server-file-name'; name.textContent=file.name;
-    name.onclick=async()=>{
-      document.getElementById('serverFileOverlay').classList.remove('open');
-      const{data:u}=await supabase.storage.from('flugspuren').createSignedUrl(file.name,3600);
+  if(error){L.innerHTML='<p style="color:var(--danger)">'+error.message+'</p>';return;}
+  L.innerHTML='';
+  (data||[]).forEach(f=>{
+    const row=document.createElement('div'); row.className='sfr';
+    const nm=document.createElement('span'); nm.className='sfn'; nm.textContent=f.name;
+    nm.onclick=async()=>{
+      document.getElementById('dServer').classList.remove('open');
+      const{data:u}=await supabase.storage.from('flugspuren').createSignedUrl(f.name,3600);
       if(u?.signedUrl) loadFromServer(u.signedUrl);
     };
-    const del=document.createElement('button'); del.className='server-file-action'; del.textContent='🗑';
-    del.onclick=async()=>{
-      if(!confirm('Löschen: "'+file.name+'"?')) return;
-      const{error}=await supabase.storage.from('flugspuren').remove([file.name]);
-      if(error) alert('Fehler: '+error.message); else listSupabaseFiles();
+    const dl=document.createElement('button'); dl.className='sfa'; dl.textContent='🗑';
+    dl.onclick=async()=>{
+      if(!confirm('Löschen: "'+f.name+'"?')) return;
+      const{error:e}=await supabase.storage.from('flugspuren').remove([f.name]);
+      if(e) alert(e.message); else listFiles();
     };
-    row.appendChild(name); row.appendChild(del); list.appendChild(row);
+    row.appendChild(nm); row.appendChild(dl); L.appendChild(row);
   });
-  if(!data?.length) list.innerHTML='<p style="color:var(--text-dim);font-size:.85rem;padding:8px">Keine Dateien.</p>';
+  if(!data?.length) L.innerHTML='<p style="color:var(--text-dim);font-size:.85rem;padding:8px">Keine Dateien.</p>';
 }
 
-async function uploadCurrent(filename){
+async function uploadCurrent(name) {
   const blob=new Blob([buildKml()],{type:'application/vnd.google-earth.kml+xml'});
-  const{error}=await supabase.storage.from('flugspuren').upload(filename,new File([blob],filename),{upsert:true});
-  if(error) alert('Upload fehlgeschlagen: '+error.message); else alert('Gespeichert: '+filename);
+  const{error}=await supabase.storage.from('flugspuren').upload(name,new File([blob],name),{upsert:true});
+  if(error) alert('Fehler: '+error.message); else alert('Gespeichert: '+name);
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  KML EXPORT
-// ═══════════════════════════════════════════════════════════════
-function buildKml(){
-  let kml=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n`;
-  for(const p of fullCoords){
-    if(!Number.isInteger(p.seconds)) continue;
-    kml+=`    <Placemark>\n      <name>${fmtTime(p.seconds)}</name>\n      <Point>\n        <coordinates>${p.lon},${p.lat},${p.alt}</coordinates>\n      </Point>\n    </Placemark>\n`;
+// ═══════════════════════════════════════════════════════════
+// KML EXPORT
+// ═══════════════════════════════════════════════════════════
+function buildKml() {
+  let k=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n`;
+  for(const c of coords){
+    if(!Number.isInteger(c.seconds)) continue;
+    k+=`    <Placemark>\n      <name>${fmtT(c.seconds)}</name>\n      <Point>\n        <coordinates>${c.lon},${c.lat},${c.alt}</coordinates>\n      </Point>\n    </Placemark>\n`;
   }
-  return kml+`  </Document>\n</kml>`;
+  return k+`  </Document>\n</kml>`;
 }
-function saveLocal(){
-  if(!fullCoords.length){alert('Keine Daten.');return;}
+function saveLocal() {
+  if(!coords.length){alert('Keine Daten.');return;}
   const a=Object.assign(document.createElement('a'),{
     href:URL.createObjectURL(new Blob([buildKml()],{type:'application/vnd.google-earth.kml+xml'})),
-    download:(originalFileName||'flugroute').replace('.kml','_export.kml')
+    download:(origName||'flugroute').replace('.kml','_export.kml')
   });
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  CHART PANEL RESIZE
-// ═══════════════════════════════════════════════════════════════
-const chartPanel=document.getElementById('chartPanel');
-const handle    =document.getElementById('chartHandle');
-let resizing=false,rsY=0,rsH=0;
-handle.addEventListener('pointerdown',e=>{resizing=true;rsY=e.clientY;rsH=chartPanel.offsetHeight;handle.setPointerCapture(e.pointerId);});
-handle.addEventListener('pointermove',e=>{if(!resizing)return;const h=Math.max(80,Math.min(window.innerHeight*.7,rsH+(rsY-e.clientY)));chartPanel.style.height=h+'px';});
-handle.addEventListener('pointerup',()=>{resizing=false;});
+// ═══════════════════════════════════════════════════════════
+// CHART RESIZE
+// ═══════════════════════════════════════════════════════════
+const cp=document.getElementById('chartPanel'), ch=document.getElementById('chartHandle');
+let rsz=false,rsY=0,rsH=0;
+ch.addEventListener('pointerdown',e=>{rsz=true;rsY=e.clientY;rsH=cp.offsetHeight;ch.setPointerCapture(e.pointerId);});
+ch.addEventListener('pointermove',e=>{if(!rsz)return;cp.style.height=Math.max(80,Math.min(window.innerHeight*.7,rsH+(rsY-e.clientY)))+'px';});
+ch.addEventListener('pointerup',()=>rsz=false);
 
-// ═══════════════════════════════════════════════════════════════
-//  KEYBOARD SHORTCUTS
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════════
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
   switch(e.code){
-    case 'Space': e.preventDefault(); if(isPlaying) pauseAnimation(); else startAnimation(); break;
-    case 'ArrowRight': scrub(10); break;
-    case 'ArrowLeft':  scrub(-10); break;
-    case 'ArrowUp':    scrub(60); break;
-    case 'ArrowDown':  scrub(-60); break;
-    case 'KeyC': cycleCamMode(); break;
-    case 'KeyF':
-      followEnabled=!followEnabled;
-      document.getElementById('toggleFollow').classList.toggle('active',followEnabled);
-      document.getElementById('followIndicator').classList.toggle('show',followEnabled);
-      if(!followEnabled) stopFollow();
-      else if(fullCoords.length){ userManuallyMoved=false; updatePoint(animationIndex); }
+    case'Space': e.preventDefault(); playing?pausePlay():startPlay(); break;
+    case'ArrowRight': scrub(10);  break;
+    case'ArrowLeft':  scrub(-10); break;
+    case'ArrowUp':    scrub(60);  break;
+    case'ArrowDown':  scrub(-60); break;
+    case'KeyC': cycleCam(); break;
+    case'KeyF':
+      followOn=!followOn;
+      document.getElementById('followBtn').classList.toggle('active',followOn);
+      document.getElementById('followIndicator').classList.toggle('show',followOn);
+      if(!followOn) stopFollow();
+      else if(coords.length){userMoved=false;applyFollow(coords[idx]);}
       break;
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-//  BUTTON HANDLERS
-// ═══════════════════════════════════════════════════════════════
-document.getElementById('togglePlayBtn').onclick=()=>{
-  if(!fullCoords.length) return;
-  if(isPlaying) pauseAnimation(); else startAnimation();
-};
-document.getElementById('trailSlider').oninput=e=>{trailSeconds=parseInt(e.target.value);};
-document.getElementById('switchView').onclick=()=>{
+// ═══════════════════════════════════════════════════════════
+// BUTTONS
+// ═══════════════════════════════════════════════════════════
+document.getElementById('playBtn').onclick   = ()=>playing?pausePlay():startPlay();
+document.getElementById('camModeBtn').onclick = cycleCam;
+document.getElementById('fsBtn').onclick     = ()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); };
+document.getElementById('switchView').onclick = ()=>{
   is3D=!is3D;
   scene.mode=is3D?Cesium.SceneMode.SCENE2D:Cesium.SceneMode.SCENE3D;
   document.getElementById('switchView').textContent=is3D?'3D':'2D';
   if(!is3D) Cesium.createWorldTerrainAsync().then(t=>viewer.terrainProvider=t);
 };
-document.getElementById('camModeBtn').onclick=cycleCamMode;
-document.getElementById('openFile').onclick=()=>document.getElementById('fileOptionsOverlay').classList.add('open');
-document.getElementById('fileOptionsCancel').onclick=()=>document.getElementById('fileOptionsOverlay').classList.remove('open');
-document.getElementById('loadLocalBtn').onclick=()=>{
-  document.getElementById('fileOptionsOverlay').classList.remove('open');
-  setTimeout(()=>{const fi=document.getElementById('fileInput');fi.value='';fi.click();},100);
-};
-document.getElementById('loadServerBtn').onclick=()=>{
-  document.getElementById('fileOptionsOverlay').classList.remove('open');
-  document.getElementById('serverFileOverlay').classList.add('open');
-  listSupabaseFiles();
-};
-document.getElementById('serverFileCancel').onclick=()=>document.getElementById('serverFileOverlay').classList.remove('open');
-document.getElementById('uploadServerBtn').onclick=()=>{
-  document.getElementById('fileOptionsOverlay').classList.remove('open');
+document.getElementById('openFile').onclick    = ()=>document.getElementById('dFile').classList.add('open');
+document.getElementById('dFileCancel').onclick = ()=>document.getElementById('dFile').classList.remove('open');
+document.getElementById('dLoadLocal').onclick  = ()=>{ document.getElementById('dFile').classList.remove('open'); setTimeout(()=>{const f=document.getElementById('fileInput');f.value='';f.click();},80); };
+document.getElementById('dLoadServer').onclick = ()=>{ document.getElementById('dFile').classList.remove('open'); document.getElementById('dServer').classList.add('open'); listFiles(); };
+document.getElementById('dServerCancel').onclick = ()=>document.getElementById('dServer').classList.remove('open');
+document.getElementById('dUpload').onclick = ()=>{
+  document.getElementById('dFile').classList.remove('open');
   const inp=document.createElement('input'); inp.type='file'; inp.accept='.kml';
   inp.onchange=async e=>{
     const f=e.target.files[0]; if(!f) return;
-    const name=prompt('Dateiname:',f.name)||f.name;
+    const n=prompt('Dateiname:',f.name)||f.name;
     showLoading(true);
-    const{error}=await supabase.storage.from('flugspuren').upload(name,new File([f],name,{type:f.type}),{upsert:true});
+    const{error}=await supabase.storage.from('flugspuren').upload(n,new File([f],n,{type:f.type}),{upsert:true});
     showLoading(false);
-    if(error) alert('Fehler: '+error.message); else alert('Hochgeladen: '+name);
+    if(error) alert(error.message); else alert('Hochgeladen: '+n);
   };
   inp.click();
 };
-document.getElementById('saveLocalBtn').onclick=()=>{
-  document.getElementById('fileOptionsOverlay').classList.remove('open'); saveLocal();
-};
+document.getElementById('dSaveLocal').onclick = ()=>{ document.getElementById('dFile').classList.remove('open'); saveLocal(); };
 document.getElementById('fileInput').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader(); r.onload=ev=>loadKmlText(ev.target.result,f.name); r.readAsText(f);
+  new FileReader().onload=ev=>loadKmlText(ev.target.result,f.name), (function(fr){ fr.onload=ev=>loadKmlText(ev.target.result,f.name); fr.readAsText(f); }(new FileReader()));
 });
-document.getElementById('toggleFollow').onclick=()=>{
-  followEnabled=!followEnabled;
-  document.getElementById('toggleFollow').classList.toggle('active',followEnabled);
-  document.getElementById('followIndicator').classList.toggle('show',followEnabled);
-  if(!followEnabled) stopFollow();
-  else if(fullCoords.length){ userManuallyMoved=false; updatePoint(animationIndex); }
+document.getElementById('followBtn').onclick = ()=>{
+  followOn=!followOn;
+  document.getElementById('followBtn').classList.toggle('active',followOn);
+  document.getElementById('followIndicator').classList.toggle('show',followOn);
+  if(!followOn) stopFollow(); else if(coords.length){userMoved=false;applyFollow(coords[idx]);}
 };
-const speedVals=[1,2,4,8,16]; let speedIdx=0;
+const spVals=[1,2,4,8,16]; let spIdx=0;
 document.getElementById('speedBtn').onclick=()=>{
-  speedIdx=(speedIdx+1)%speedVals.length;
-  speedFactor=speedVals[speedIdx];
-  document.getElementById('speedBtn').textContent=speedFactor+'×';
+  spIdx=(spIdx+1)%spVals.length; speed=spVals[spIdx];
+  document.getElementById('speedBtn').textContent=speed+'×';
 };
-document.getElementById('fullscreenBtn').onclick=()=>{
-  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
-  else document.exitFullscreen();
-};
-document.getElementById('cutModeBtn').onclick=()=>{ if(!cutModeActive) activateCutMode(); else applyCut(); };
-document.getElementById('cutUploadYes').onclick=async()=>{
-  document.getElementById('cutUploadOverlay').classList.remove('open');
-  const n=prompt('Dateiname:',(originalFileName||'cut').replace('.kml','_schnitt.kml'));
+document.getElementById('cutBtn').onclick=()=>cutActive?applyCut():activateCut();
+document.getElementById('dCutYes').onclick=async()=>{
+  document.getElementById('dCutUpload').classList.remove('open');
+  const n=prompt('Dateiname:',(origName||'cut').replace('.kml','_schnitt.kml'));
   if(n) await uploadCurrent(n);
 };
-document.getElementById('cutUploadNo').onclick=()=>{
-  document.getElementById('cutUploadOverlay').classList.remove('open'); saveLocal();
-};
+document.getElementById('dCutNo').onclick=()=>{ document.getElementById('dCutUpload').classList.remove('open'); saveLocal(); };
 
-// ═══════════════════════════════════════════════════════════════
-//  UTILS
-// ═══════════════════════════════════════════════════════════════
-function fmtTime(sec){
-  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=Math.floor(sec%60);
-  return h>0?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function fmtT(s) {
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=Math.floor(s%60);
+  return h?`${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`:`${m}:${String(ss).padStart(2,'0')}`;
 }
-function showLoading(on){
-  const b=document.getElementById('loadingBar');
-  b.style.display=on?'block':'none'; b.style.width=on?'70%':'100%';
-  if(!on) setTimeout(()=>b.style.display='none',350);
-}
-function showKeyHint(){
-  const h=document.getElementById('keyHint');
-  h.classList.add('show');
-  setTimeout(()=>h.classList.remove('show'),4000);
-}
+function showLoading(on){const b=document.getElementById('loadingBar');b.style.display=on?'block':'none';b.style.width=on?'70%':'100%';if(!on)setTimeout(()=>b.style.display='none',350);}
+function showMsg(t){const m=document.getElementById('loadingMsg');m.textContent='⏳ '+t;m.style.display='block';}
+function hideMsg(){document.getElementById('loadingMsg').style.display='none';}
+function showKeyHint(){const h=document.getElementById('keyHint');h.classList.add('show');setTimeout(()=>h.classList.remove('show'),4500);}
 
-// Init follow indicator
-document.getElementById('followIndicator').classList.toggle('show',followEnabled);
+// Init
+document.getElementById('followIndicator').classList.toggle('show',followOn);
 </script>
 </body>
 </html>
