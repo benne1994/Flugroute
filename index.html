@@ -1,356 +1,432 @@
-<!DOCTYPE html><html lang="de"><head>  <meta charset="utf-8">
-  <title>Flugspur App mit Höhen-Offset</title>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flugspur Visualisierung</title>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const supabase = window.supabase.createClient(
-    'https://jmtajdfehlvyzrtfnszs.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdGFqZGZlaGx2eXpydGZuc3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2Mzc1NzAsImV4cCI6MjA2MjIxMzU3MH0.GjQ7A9NwIineYRtrpUmy01i1hwRukkwQEcBKuVqlOEI'
-  );
-</script>
+  <script>
+    const supabase = window.supabase.createClient(
+      'https://jmtajdfehlvyzrtfnszs.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdGFqZGZlaGx2eXpydGZuc3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2Mzc1NzAsImV4cCI6MjA2MjIxMzU3MH0.GjQ7A9NwIineYRtrpUmy01i1hwRukkwQEcBKuVqlOEI'
+    );
+  </script>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --surface: rgba(16, 22, 32, 0.85);
+      --border: rgba(80, 160, 255, 0.18);
+      --accent: #4fa3ff;
+      --accent2: #00e5a0;
+      --danger: #ff4f6a;
+      --text: #e8f0ff;
+      --text-dim: #7a90b0;
+      --font-ui: 'Rajdhani', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius: 12px;
+      --glass: blur(16px) saturate(180%);
+    }
 
-<style>
-  :root {
-    --bg-color: #f0f0f0;
-    --font: sans-serif;
-    --info-bg: rgba(0, 0, 0, 0.6);
-    --info-color: white;
-    --button-bg: #333;
-    --button-color: white;
-    --button-size: 10vw;
-    --button-radius: 50%;
-    --button-font-size: 5vw;
-    --handle-height: 40px;
-    --handle-color: #666;
-  }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family: var(--font);
-    background: var(--bg-color);
-    overflow: hidden;
-  }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      font-family: var(--font-ui);
+      color: var(--text);
+      overflow: hidden;
+    }
 
-  #cesiumContainer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-  }
+    #cesiumContainer {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+    }
 
-  #chartContainer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 30%;
-    background: rgba(211, 211, 211, 0.5);
-    display: flex;
-    flex-direction: column;
-    z-index: 1000;
-    transition: height 0.2s ease;
-    overflow: hidden;
-  }
+    /* ── HUD Info Box ── */
+    #hud {
+      position: absolute;
+      top: 16px; left: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      backdrop-filter: var(--glass);
+      -webkit-backdrop-filter: var(--glass);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      z-index: 1000;
+      pointer-events: none;
+      min-width: 180px;
+    }
 
-  #chartResizeHandle {
-    height: var(--handle-height);
-    background: var(--handle-color);
-    cursor: ns-resize;
-    touch-action: none;
-    flex-shrink: 0;
-  }
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: clamp(11px, 2.2vw, 14px);
+    }
+    .hud-row:last-child { border-bottom: none; }
+    .hud-label {
+      color: var(--text-dim);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: clamp(9px, 1.8vw, 11px);
+    }
+    .hud-val {
+      font-family: var(--font-mono);
+      font-size: clamp(11px, 2.2vw, 14px);
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .hud-val.climb-pos { color: var(--accent2); }
+    .hud-val.climb-neg { color: var(--danger); }
 
-  #mainChart {
-    flex: 1;
-    width: 100% !important;
-    height: 100% !important;
-  }
+    /* ── Control Panel ── */
+    #controls {
+      position: absolute;
+      top: 16px; right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 2000;
+    }
 
-  #buttonBar {
-    position: fixed;
-    top: 20vw;
-    left: 2vw;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 2000;
-  }
+    .ctrl-btn {
+      width: clamp(40px, 10vw, 52px);
+      height: clamp(40px, 10vw, 52px);
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: var(--glass);
+      -webkit-backdrop-filter: var(--glass);
+      color: var(--text);
+      font-size: clamp(14px, 3.5vw, 20px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, background 0.2s, transform 0.1s;
+      font-family: var(--font-ui);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .ctrl-btn:active { transform: scale(0.93); }
+    .ctrl-btn:hover  { border-color: var(--accent); background: rgba(79,163,255,0.12); }
+    .ctrl-btn.active { border-color: var(--accent2); background: rgba(0,229,160,0.12); color: var(--accent2); }
+    .ctrl-btn.play-btn { width: clamp(48px, 12vw, 60px); height: clamp(48px, 12vw, 60px); font-size: clamp(16px, 4vw, 22px); }
 
-  #buttonBar > button {
-    width: var(--button-size);
-    height: var(--button-size);
-    font-size: var(--button-font-size);
-    border-radius: var(--button-radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--button-bg);
-    color: var(--button-color);
-    border: none;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
-    padding: 0;
-  }
+    #trailSlider {
+      width: clamp(40px, 10vw, 52px);
+      cursor: pointer;
+      accent-color: var(--accent);
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      height: 80px;
+      align-self: center;
+    }
 
-  #trailSlider {
-    width: 15vw;
-  }
+    /* ── Chart Panel ── */
+    #chartPanel {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 28%;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      backdrop-filter: var(--glass);
+      -webkit-backdrop-filter: var(--glass);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transition: height 0.15s ease;
+      overflow: hidden;
+    }
 
-  #infoBox {
-    position: absolute;
-    top: 1vw;
-    left: 1vw;
-    background: var(--info-bg);
-    color: var(--info-color);
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 2vw;
-    z-index: 1000;
-    pointer-events: none;
-  }
+    #chartHandle {
+      height: 28px;
+      cursor: ns-resize;
+      touch-action: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+    }
+    #chartHandle::before {
+      content: '';
+      width: 40px; height: 4px;
+      border-radius: 2px;
+      background: var(--text-dim);
+    }
 
-  #infoBox strong {
-    font-weight: bold;
-  }
+    #mainChart {
+      flex: 1;
+      width: 100% !important;
+      height: 100% !important;
+    }
 
-  #fileInput {
-    display: none;
-  }
+    /* ── Dialogs ── */
+    .dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 2900;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .dialog-overlay.open { display: flex; }
 
-  .cesium-button {
-    width: 8vw;
-    height: 8vw;
-    margin-bottom: 12px;
-  }
+    .dialog-box {
+      background: #111827;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      width: min(90vw, 380px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .dialog-box h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .dialog-btn {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s, border-color 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dialog-btn:hover { background: rgba(79,163,255,0.1); border-color: var(--accent); }
+    .dialog-btn.cancel { color: var(--text-dim); font-size: 0.9rem; justify-content: center; }
 
-  .cesium-viewer-toolbar {
-    top: 2vw !important;
-    right: 2vw !important;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+    #serverFileList {
+      max-height: 45vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) transparent;
+    }
 
-#fileOptionsDialog,
-#serverFileDialog,
-#cutUploadDialog {
-  position: fixed;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80vw;
-  height: 40vh;
-  background: #444;
-  padding: 20px;
-  border-radius: 15px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  z-index: 3000;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  color: white;
-  display: none;
-}
+    .server-file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+    }
+    .server-file-name {
+      flex: 1;
+      font-size: 0.95rem;
+      cursor: pointer;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .server-file-name:hover { color: var(--accent); }
+    .server-file-action {
+      border: none;
+      background: rgba(255,255,255,0.07);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.15s;
+    }
+    .server-file-action:hover { background: rgba(255,79,106,0.2); color: var(--danger); }
 
-#fileOptionsDialog button,
-#serverFileDialog button,
-#cutUploadDialog button {
-  font-size: 1.5rem;
-  padding: 12px 20px;
-  border-radius: 10px;
-  background: #666;
-  color: white;
-  border: none;
-}
+    /* Hide cesium default toolbar clutter */
+    .cesium-viewer-toolbar { display: none !important; }
+    .cesium-widget-credits { display: none !important; }
 
+    #fileInput { display: none; }
 
-  #serverFileList {
-    flex: 1;
-    overflow-y: scroll;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 5px;
-    max-height: 30vh;
-  }
-  #serverFileList::-webkit-scrollbar {
-  width: 12px;}
-  #serverFileList::-webkit-scrollbar-thumb {
-  background-color: #888;
-  border-radius: 6px;}
-  #serverFileList::-webkit-scrollbar-track {
-  background-color: #444;}
-
-#fileOptionsDialog button,
-#cutUploadDialog button {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
-  padding: 12px;
-  font-size: 1.4rem;
-  border-radius: 10px;
-  background: #444;
-  color: white;
-  border: 2px solid black;
-}
-  #serverFileList button {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 4vw;
-    padding: 10px 10px;
-    background-color: #444;
-    color: white;
-    border: 2px solid black;
-    border-radius: 20px;
-    width: 100%;
-    height: 20vh;;
-    
-  }
-
-#serverFileList button.rename,
-#serverFileList button.delete {
-  background-color: #666;
-  color: white;
-  padding: 5px 5px;
-  margin-right: 4px;
-  border-radius: 5px;
-  font-size: 3vw;
-  border: none;
-  width: 5vw;
-  height: 5vw;
-}
-
-
-</style>
-
+    /* Loading indicator */
+    #loadingBar {
+      position: absolute;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      z-index: 9999;
+      transition: width 0.3s ease;
+      display: none;
+    }
+  </style>
 </head>
-
 <body>
-  <div id="cesiumContainer"></div>
 
-  <div id="infoBox">
-    <div><strong>Geschwindigkeit:</strong> <span id="infoSpeed">–</span> km/h</div>
-    <div><strong>Höhe (NN):</strong> <span id="infoAlt">–</span> m</div>
-    <div><strong>Höhe über Start:</strong> <span id="infoRelAlt">–</span> m</div>
-    <div><strong>Steigrate:</strong> <span id="infoVario">–</span> m/s</div>
-    <div><strong>Strecke:</strong> <span id="infoDistance">–</span> km</div>
+<div id="loadingBar"></div>
+<div id="cesiumContainer"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-row"><span class="hud-label">Speed</span><span class="hud-val" id="infoSpeed">– km/h</span></div>
+  <div class="hud-row"><span class="hud-label">Höhe NN</span><span class="hud-val" id="infoAlt">– m</span></div>
+  <div class="hud-row"><span class="hud-label">Δ Start</span><span class="hud-val" id="infoRelAlt">– m</span></div>
+  <div class="hud-row"><span class="hud-label">Vario</span><span class="hud-val" id="infoVario">– m/s</span></div>
+  <div class="hud-row"><span class="hud-label">Strecke</span><span class="hud-val" id="infoDistance">– km</span></div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <input type="range" id="trailSlider" min="100" max="3000" value="2999">
+  <button class="ctrl-btn" id="switchView" title="2D/3D">2D</button>
+  <button class="ctrl-btn" id="openFile" title="Datei öffnen">📁</button>
+  <button class="ctrl-btn play-btn" id="togglePlayBtn" title="Play/Pause">▶</button>
+  <button class="ctrl-btn" id="speedBtn" title="Geschwindigkeit">1×</button>
+  <button class="ctrl-btn active" id="toggleFollow" title="Kamera folgen">👁</button>
+  <button class="ctrl-btn" id="fullscreenBtn" title="Vollbild">⛶</button>
+  <button class="ctrl-btn" id="cutModeBtn" title="Zuschneiden">✂</button>
+</div>
+
+<input type="file" id="fileInput" accept=".kml">
+
+<!-- Chart -->
+<div id="chartPanel">
+  <div id="chartHandle"></div>
+  <canvas id="mainChart"></canvas>
+</div>
+
+<!-- File Options Dialog -->
+<div class="dialog-overlay" id="fileOptionsOverlay">
+  <div class="dialog-box">
+    <h3>📂 Datei</h3>
+    <button class="dialog-btn" id="loadLocalBtn">💾 Lokal laden</button>
+    <button class="dialog-btn" id="loadServerBtn">☁ Vom Server laden</button>
+    <button class="dialog-btn" id="uploadServerBtn">⬆ Auf Server speichern</button>
+    <button class="dialog-btn" id="saveLocalBtn">⬇ Lokal speichern</button>
+    <button class="dialog-btn cancel" id="fileOptionsCancel">Abbrechen</button>
   </div>
+</div>
 
-  <div id="buttonBar">
-    <input type="range" id="trailSlider" min="100" max="3000" value="2999">
-    <button id="switchView">2D</button>
-    <button id="openFile" title="Datei öffnen">📁</button>
-    <button id="togglePlayBtn">&#9654;</button>
-    <button id="speedBtn" title="Geschwindigkeit">1x</button>
-    <button id="toggleFollow">&#128065;</button>
-    <button id="fullscreenBtn" title="Vollbild">⛶</button>
-  </div>
-
-  <input type="file" id="fileInput" accept=".kml">
-
-  <div id="chartContainer">
-    <div id="chartResizeHandle"></div>
-    <canvas id="mainChart"></canvas>
-  </div>
-
-  <!-- Datei-Optionen Dialog -->
-  <div id="fileOptionsDialog" style="display: none;">
-    <p>Was möchtest du tun?</p>
-    <button id="loadLocalBtn">Lokal laden</button>
-    <button id="loadServerBtn">Vom Server laden</button>
-    <button id="uploadServerBtn">Auf Server speichern</button>
-    <button id="saveLocalBtn">Lokal speichern</button>
-   <button onclick="activateCutMode()">Datei zuschneiden</button>
-<button onclick="applyCut()">Schnitt anwenden</button>    
-    
-    <button onclick="document.getElementById('fileOptionsDialog').style.display='none'">Abbrechen</button>
-  </div>
-
-  <!-- Server-Dateiliste Dialog -->
-  <div id="serverFileDialog" style="display: none;">
-    <p>Verfügbare Dateien auf dem Server:</p>
+<!-- Server File Dialog -->
+<div class="dialog-overlay" id="serverFileOverlay">
+  <div class="dialog-box">
+    <h3>☁ Server-Dateien</h3>
     <div id="serverFileList"></div>
-    <button onclick="document.getElementById('serverFileDialog').style.display='none'">Abbrechen</button>
+    <button class="dialog-btn cancel" id="serverFileCancel">Abbrechen</button>
   </div>
-  <button id="applyCutBtn">Zuschneiden</button>
-  <button onclick="document.getElementById('cutDialog').style.display='none'">Abbrechen</button>
 </div>
 
-<div id="cutUploadDialog" class="dialog hidden">
-  <p>Möchtest du die zugeschnittene Datei direkt auf dem Server speichern?</p>
-  <button onclick="uploadCutToServer()">Ja</button>
-<button id="cutCancelBtn">Nein</button>
+<!-- Cut Upload Dialog -->
+<div class="dialog-overlay" id="cutUploadOverlay">
+  <div class="dialog-box">
+    <h3>✂ Zuschnitt speichern?</h3>
+    <p style="color:var(--text-dim);font-size:0.9rem;">Zugeschnittene Datei auf den Server hochladen?</p>
+    <button class="dialog-btn" id="cutUploadYes">✔ Ja, hochladen</button>
+    <button class="dialog-btn cancel" id="cutUploadNo">Nein, nur lokal</button>
+  </div>
 </div>
-</body>
-
 
 <script>
-Cesium.Ion.defaultAccessToken  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
+// ═══════════════════════════════════════════════════════
+//  CESIUM INIT
+// ═══════════════════════════════════════════════════════
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTI3MDRmMy1mYjg5LTRjNmYtYjBmZC1kZDQxN2NlNzVkZDEiLCJpZCI6Mjk3NzA1LCJpYXQiOjE3NDU5MzE5MTh9.svRycz7t606srY9WbWiWUaLB2hJpycWmo835Dy-VWtw';
 
-let startAltitude = null;
-const altitudeOffset = 50;
 const viewer = new Cesium.Viewer('cesiumContainer', {
   sceneMode: Cesium.SceneMode.SCENE3D,
-  animation: false,
-  timeline: false,
-  baseLayerPicker: true,
-  fullscreenButton: false,
-  homeButton: false,
-  sceneModePicker: false,
-  geocoder: false,
-  navigationHelpButton: false,
-  infoBox: false,
-  selectionIndicator: false,
+  animation: false, timeline: false,
+  baseLayerPicker: true, fullscreenButton: false,
+  homeButton: false, sceneModePicker: false,
+  geocoder: false, navigationHelpButton: false,
+  infoBox: false, selectionIndicator: false,
   terrain: Cesium.Terrain.fromWorldTerrain()
-    
 });
 
-navigator.geolocation.getCurrentPosition(pos => {
-  const lat = pos.coords.latitude;
-  const lon = pos.coords.longitude;
-  const alt = (pos.coords.altitude || 0) + 1000;
+const scene = viewer.scene;
+const camera = viewer.camera;
+const controller = scene.screenSpaceCameraController;
+controller.rotateRate = 0.3;
+controller.zoomRate   = 0.4;
+controller.tiltRate   = 0.2;
 
-  const destination = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-  viewer.camera.flyTo({
-    destination: destination,
+// Fly to user location on start
+navigator.geolocation.getCurrentPosition(pos => {
+  camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, (pos.coords.altitude || 0) + 1000),
     duration: 8
   });
-}, err => {
-  console.warn("GPS nicht verfügbar:", err);
-});
+}, () => {});
 
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+const ALT_OFFSET = 50;
 
-
-const controller = viewer.scene.screenSpaceCameraController;
-controller.rotateRate = 0.3;          // Kamera-Rotation
-controller.zoomEventTypes = [
-  Cesium.CameraEventType.WHEEL,
-  Cesium.CameraEventType.PINCH
-];
-controller.zoomRate = 0.4;            // Zoom-Empfindlichkeit
-controller.tiltRate = 0.2;            // Neigungsrate (nur in 3D relevant)
-
-let lastQuadTime = null;
-let originalKmlContent = null;
-let verticalQuadEntities = [];
-let verticalLineEntities = [];
+let fullCoords      = [];   // { seconds, lon, lat, alt, distCum }
+let animationIndex  = 0;
+let isPlaying       = false;
+let speedFactor     = 1;
+let trailSeconds    = 3000;
+let followEnabled   = true;
+let is3D            = false;
+let startAltitude   = null;
 let originalFileName = null;
-let fullCoords = [], animationIndex = 0, animationInterval = null;
-let mainChart, is3D = false, speedFactor = 1, trailSeconds = 3000, followEnabled = true;
-let movingPointEntity = null, followTransform;
+let originalKmlContent = null;
+let cutModeActive   = false;
 
+let movingPointEntity  = null;
+let followTransform    = null;
+let mainChart          = null;
+
+// rAF animation
+let rafId       = null;
+let lastRafTime = null;
+let secondsAccum = 0;   // accumulated simulated seconds
+
+// Quad trail
+let quadEntities  = [];
+const MAX_QUADS   = 60;
+let lastQuadIdx   = -1;
+
+// ═══════════════════════════════════════════════════════
+//  TRAIL POLYLINE (CallbackProperty – no re-add needed)
+// ═══════════════════════════════════════════════════════
 const trailPositions = new Cesium.CallbackProperty(() => {
+  if (!fullCoords.length) return [];
   const t = fullCoords[animationIndex]?.seconds ?? 0;
-  const trail = fullCoords.filter(p => p.seconds >= t - trailSeconds && p.seconds <= t);
+  const minT = t - trailSeconds;
+  const trail = [];
+  for (let i = animationIndex; i >= 0; i--) {
+    if (fullCoords[i].seconds < minT) break;
+    trail.unshift(fullCoords[i]);
+  }
   return Cesium.Cartesian3.fromDegreesArrayHeights(
-    trail.flatMap(p => [p.lon, p.lat, p.alt + altitudeOffset])
+    trail.flatMap(p => [p.lon, p.lat, p.alt + ALT_OFFSET])
   );
 }, false);
 
@@ -358,917 +434,708 @@ viewer.entities.add({
   polyline: {
     positions: trailPositions,
     width: 4,
-    material: new Cesium.ColorMaterialProperty(
-      Cesium.Color.BLUE.withAlpha(1.0)
-    )
+    material: new Cesium.ColorMaterialProperty(Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.95))
   }
 });
 
-async function updateMovingPoint(p) {
-  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
+// ═══════════════════════════════════════════════════════
+//  PARSE KML
+// ═══════════════════════════════════════════════════════
+function parseKml(text) {
+  const lines = text.split(/\r?\n/);
+  const raw = [];
+  let currentTime = null;
 
+  for (let line of lines) {
+    line = line.trim();
+    if (line.startsWith('<name>')) {
+      const parts = line.replace(/<\/?name>/g, '').trim().split(':').map(Number);
+      if (parts.length >= 2) {
+        const [h, m, s = 0] = parts;
+        currentTime = h * 3600 + m * 60 + s;
+      }
+    }
+    if (line.includes('<coordinates>') && currentTime !== null) {
+      const coordStr = line.substring(line.indexOf('>') + 1, line.indexOf('</coordinates>')).trim();
+      const [lon, lat, alt] = coordStr.split(',').map(Number);
+      if (!isNaN(lon) && !isNaN(lat) && !isNaN(alt)) {
+        raw.push({ seconds: currentTime, lon, lat, alt });
+      }
+    }
+  }
+
+  if (!raw.length) return [];
+
+  // Interpolate between raw points (10 sub-steps) + pre-compute cumulative distance
+  const coords = [];
+  const STEPS = 10;
+
+  for (let i = 0; i < raw.length; i++) {
+    if (i === 0) {
+      coords.push({ ...raw[0], distCum: 0 });
+      continue;
+    }
+    const prev = raw[i - 1];
+    const curr = raw[i];
+    for (let s = 1; s <= STEPS; s++) {
+      const t = s / STEPS;
+      const lon = prev.lon + (curr.lon - prev.lon) * t;
+      const lat = prev.lat + (curr.lat - prev.lat) * t;
+      const alt = prev.alt + (curr.alt - prev.alt) * t;
+      const seconds = prev.seconds + (curr.seconds - prev.seconds) * t;
+
+      const last = coords[coords.length - 1];
+      const dx = (lon - last.lon) * 111320 * Math.cos(lat * Math.PI / 180);
+      const dy = (lat - last.lat) * 111320;
+      const distStep = Math.sqrt(dx * dx + dy * dy);
+      coords.push({ seconds, lon, lat, alt, distCum: last.distCum + distStep });
+    }
+  }
+
+  return coords;
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOAD KML (local or remote text)
+// ═══════════════════════════════════════════════════════
+function loadKmlText(text, filename) {
+  originalKmlContent = text;
+  originalFileName   = filename;
+  fullCoords = parseKml(text);
+  if (!fullCoords.length) { alert('Keine gültigen Koordinaten gefunden.'); return; }
+
+  animationIndex = 0;
+  startAltitude  = null;
+  isPlaying      = false;
+  lastRafTime    = null;
+  secondsAccum   = 0;
+  cancelAnimationFrame(rafId);
+  document.getElementById('togglePlayBtn').textContent = '▶';
+
+  // Clear old quads
+  quadEntities.forEach(e => viewer.entities.remove(e));
+  quadEntities = [];
+  lastQuadIdx  = -1;
+
+  updatePoint(0);
+  buildChart();
+
+  // Fly to start
+  camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(fullCoords[0].lon, fullCoords[0].lat, fullCoords[0].alt + 2000),
+    duration: 2
+  });
+}
+
+async function loadFromServer(url) {
+  showLoading(true);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    loadKmlText(text, url.split('/').pop());
+  } catch (e) {
+    alert('Fehler beim Laden: ' + e.message);
+  }
+  showLoading(false);
+}
+
+// ═══════════════════════════════════════════════════════
+//  UPDATE POINT (called each animation step)
+// ═══════════════════════════════════════════════════════
+function updatePoint(idx) {
+  animationIndex = idx;
+  const p   = fullCoords[idx];
+  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + ALT_OFFSET);
+
+  // ── Moving entity ──
   if (!movingPointEntity) {
     movingPointEntity = viewer.entities.add({
       position: pos,
-      orientation: new Cesium.CallbackProperty(() => {
-        if (animationIndex === 0 || animationIndex >= fullCoords.length) return Cesium.Quaternion.IDENTITY;
-
-        const prev = fullCoords[animationIndex - 1];
-        const curr = fullCoords[animationIndex];
-
-        const from = Cesium.Cartesian3.fromDegrees(prev.lon, prev.lat, prev.alt + altitudeOffset);
-        const to = Cesium.Cartesian3.fromDegrees(curr.lon, curr.lat, curr.alt + altitudeOffset);
-
-        const dir = Cesium.Cartesian3.subtract(to, from, new Cesium.Cartesian3());
-        if (Cesium.Cartesian3.magnitude(dir) === 0) return Cesium.Quaternion.IDENTITY;
-
-        Cesium.Cartesian3.normalize(dir, dir);
-        const up = Cesium.Cartesian3.UNIT_Z;
-        const right = Cesium.Cartesian3.cross(up, dir, new Cesium.Cartesian3());
-        Cesium.Cartesian3.normalize(right, right);
-        const trueUp = Cesium.Cartesian3.cross(dir, right, new Cesium.Cartesian3());
-
-        const rotMatrix = new Cesium.Matrix3();
-        Cesium.Matrix3.setColumn(rotMatrix, 0, right, rotMatrix);
-        Cesium.Matrix3.setColumn(rotMatrix, 1, trueUp, rotMatrix);
-        Cesium.Matrix3.setColumn(rotMatrix, 2, dir, rotMatrix);
-
-const baseQuat = Cesium.Quaternion.fromRotationMatrix(rotMatrix);
-
-// Erst -90° um Y-Achse, dann +90° um X-Achse
-const yRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, Cesium.Math.toRadians(+0));
-const xRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(-90));
-const zRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(-90));
-
-
-const correctionQuat = Cesium.Quaternion.multiply(xRot, yRot, zRot, new Cesium.Quaternion());
-
-// Wende Korrektur auf Basisrotation an
-return Cesium.Quaternion.multiply(baseQuat, correctionQuat, new Cesium.Quaternion());  
-      }, false),
+      orientation: buildOrientation(),
       model: {
         uri: 'https://benne1994.github.io/Flugroute/falcon_flying.glb',
         scale: 0.9,
-        minimumPixelSize: 32
+        minimumPixelSize: 32,
+        maximumScale: 200
       }
     });
-
-    if (followEnabled) enableFollow(p);
   } else {
-    movingPointEntity.position = pos;
-    if (followEnabled) updateFollow(p);
+    movingPointEntity.position = new Cesium.ConstantPositionProperty(pos);
   }
 
-  // Zeitabweichung prüfen und ggf. Flächen zurücksetzen
-  const currentTime = p.seconds;
-  if (lastQuadTime !== null && Math.abs(currentTime - lastQuadTime) > 10) {
-    verticalQuadEntities.forEach(ent => viewer.entities.remove(ent));
-    verticalQuadEntities = [];
-  }
-  lastQuadTime = currentTime;
+  // ── Follow camera ──
+  if (followEnabled) doFollow(p, pos);
 
-  // Geschwindigkeitsanzeige + Höhenanzeige aktualisieren
-  let speedKmh = 0;
-  if (animationIndex > 0) {
-    const prev = fullCoords[animationIndex - 1];
-    const dx = p.lon - prev.lon;
-    const dy = p.lat - prev.lat;
-    const dist = Math.sqrt(dx * dx + dy * dy) * 111320;
-    const dt = p.seconds - prev.seconds;
-    if (dt > 0) speedKmh = (dist / dt) * 3.6;
-  }
-
+  // ── HUD ──
   if (startAltitude === null) startAltitude = p.alt;
 
-  let climbRate = 0;
-  if (animationIndex > 0) {
-    const prev = fullCoords[animationIndex - 1];
-    const dt = p.seconds - prev.seconds;
-    if (dt > 0) climbRate = (p.alt - prev.alt) / dt;
+  let speedKmh = 0, climbRate = 0;
+  if (idx > 0) {
+    const prev = fullCoords[idx - 1];
+    const dt   = p.seconds - prev.seconds;
+    if (dt > 0) {
+      const dx = (p.lon - prev.lon) * 111320 * Math.cos(p.lat * Math.PI / 180);
+      const dy = (p.lat - prev.lat) * 111320;
+      speedKmh  = (Math.sqrt(dx * dx + dy * dy) / dt) * 3.6;
+      climbRate = (p.alt - prev.alt) / dt;
+    }
   }
-  
-  let distSum = 0;
-for (let i = 1; i <= animationIndex; i++) {
-  const dx = fullCoords[i].lon - fullCoords[i - 1].lon;
-  const dy = fullCoords[i].lat - fullCoords[i - 1].lat;
-  const d = Math.sqrt(dx * dx + dy * dy) * 111.32; // grobe Umrechnung in km
-  distSum += d;
+
+  document.getElementById('infoSpeed').textContent    = speedKmh.toFixed(1) + ' km/h';
+  document.getElementById('infoAlt').textContent      = p.alt.toFixed(1) + ' m';
+  document.getElementById('infoRelAlt').textContent   = (p.alt - startAltitude).toFixed(1) + ' m';
+  document.getElementById('infoDistance').textContent = ((p.distCum ?? 0) / 1000).toFixed(2) + ' km';
+
+  const varioEl = document.getElementById('infoVario');
+  varioEl.textContent = climbRate.toFixed(2) + ' m/s';
+  varioEl.className   = 'hud-val' + (climbRate > 0.2 ? ' climb-pos' : climbRate < -0.2 ? ' climb-neg' : '');
 }
-document.getElementById('infoDistance').textContent = distSum.toFixed(2);
 
-  document.getElementById('infoSpeed').textContent = speedKmh.toFixed(1);
-  document.getElementById('infoAlt').textContent = p.alt.toFixed(1);
-  document.getElementById('infoRelAlt').textContent = (p.alt - startAltitude).toFixed(1);
-  document.getElementById('infoVario').textContent = climbRate.toFixed(1);
-} 
- async function createVerticalQuad(p1, p2) {
-  const baseColor = Cesium.Color.fromCssColorString("#6699FF"); // helleres Blau
+function buildOrientation() {
+  return new Cesium.CallbackProperty(() => {
+    if (animationIndex === 0 || animationIndex >= fullCoords.length) return Cesium.Quaternion.IDENTITY;
+    const prev = fullCoords[Math.max(0, animationIndex - 1)];
+    const curr = fullCoords[animationIndex];
+    const from = Cesium.Cartesian3.fromDegrees(prev.lon, prev.lat, prev.alt + ALT_OFFSET);
+    const to   = Cesium.Cartesian3.fromDegrees(curr.lon, curr.lat, curr.alt + ALT_OFFSET);
+    const dir  = Cesium.Cartesian3.subtract(to, from, new Cesium.Cartesian3());
+    if (Cesium.Cartesian3.magnitude(dir) < 1e-6) return Cesium.Quaternion.IDENTITY;
+    Cesium.Cartesian3.normalize(dir, dir);
 
-  // Terrains für beide Punkte abfragen
+    const up    = Cesium.Cartesian3.UNIT_Z;
+    const right = Cesium.Cartesian3.normalize(Cesium.Cartesian3.cross(up, dir, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    const trueUp = Cesium.Cartesian3.cross(dir, right, new Cesium.Cartesian3());
+    const rot = new Cesium.Matrix3();
+    Cesium.Matrix3.setColumn(rot, 0, right, rot);
+    Cesium.Matrix3.setColumn(rot, 1, trueUp, rot);
+    Cesium.Matrix3.setColumn(rot, 2, dir, rot);
+    const base = Cesium.Quaternion.fromRotationMatrix(rot);
+    const xRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(-90));
+    const yRot = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, 0);
+    const corr = Cesium.Quaternion.multiply(xRot, yRot, new Cesium.Quaternion());
+    return Cesium.Quaternion.multiply(base, corr, new Cesium.Quaternion());
+  }, false);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CAMERA FOLLOW
+// ═══════════════════════════════════════════════════════
+function doFollow(p, pos) {
+  if (scene.mode === Cesium.SceneMode.SCENE3D) {
+    followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+    const camOffset = followTransform
+      ? viewer.camera.position
+      : new Cesium.Cartesian3(0, -1000, 500);
+    camera.lookAtTransform(followTransform, followTransform ? camOffset : new Cesium.Cartesian3(0, -1000, 500));
+  } else {
+    const h = camera.positionCartographic.height;
+    camera.setView({ destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, h) });
+  }
+}
+
+function stopFollow() {
+  camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+}
+
+// ═══════════════════════════════════════════════════════
+//  VERTICAL QUAD (shadow under flight path)
+// ═══════════════════════════════════════════════════════
+async function maybeAddQuad(idx) {
+  if (idx <= 0 || idx === lastQuadIdx) return;
+  lastQuadIdx = idx;
+
+  const p1 = fullCoords[idx - 1];
+  const p2 = fullCoords[idx];
+
   const cartos = [
     Cesium.Cartographic.fromDegrees(p1.lon, p1.lat),
     Cesium.Cartographic.fromDegrees(p2.lon, p2.lat)
   ];
-  const updated = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
-  const ground1Height = updated[0].height ?? 0;
-  const ground2Height = updated[1].height ?? 0;
 
-  const top1 = Cesium.Cartesian3.fromDegrees(p1.lon, p1.lat, p1.alt + altitudeOffset);
-  const top2 = Cesium.Cartesian3.fromDegrees(p2.lon, p2.lat, p2.alt + altitudeOffset);
-  const ground1 = Cesium.Cartesian3.fromDegrees(p1.lon, p1.lat, ground1Height);
-  const ground2 = Cesium.Cartesian3.fromDegrees(p2.lon, p2.lat, ground2Height);
-
-  const entity = viewer.entities.add({
-    polygon: {
-      hierarchy: new Cesium.PolygonHierarchy([top1, top2, ground2, ground1]),
-      material: baseColor.withAlpha(0.15),
-      perPositionHeight: true
-    }
-  });
-
-  verticalQuadEntities.push(entity);
-
-  if (verticalQuadEntities.length > 50) {
-    const removed = verticalQuadEntities.shift();
-    viewer.entities.remove(removed);
-  }
-
-  verticalQuadEntities.forEach((ent, i) => {
-    const alpha = 0.15 + (i / verticalQuadEntities.length) * 0.35;
-    ent.polygon.material = baseColor.withAlpha(alpha);
-  });
-}
- 
-function enableFollow(p) {
-  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
-
-  if (viewer.scene.mode === Cesium.SceneMode.SCENE3D) {
-    const offset = new Cesium.Cartesian3(0, -1000, 500);
-    followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
-    viewer.camera.lookAtTransform(followTransform, offset);
-  } else {
-    // In 2D nur Position setzen, ohne Offset oder Transform
-    viewer.camera.setView({ destination: pos });
-  }
-}
-
-
-
-function updateFollow(p) {
-  const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + altitudeOffset);
-
-  if (viewer.scene.mode === Cesium.SceneMode.SCENE3D) {
-    followTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
-    viewer.camera.lookAtTransform(followTransform, viewer.camera.position);
-  } else {
-    const currentHeight = viewer.camera.positionCartographic.height;
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, currentHeight)
-    });
-  }
-}
-
-function apply2DInteractionControl() {
-  if (viewer.scene.mode === Cesium.SceneMode.SCENE2D && followEnabled) {
-    controller.enableTranslate = false;  // Verschieben mit Maus blockieren
-    controller.enableZoom = true;        // Zoomen bleibt erlaubt
-  } else {
-    controller.enableTranslate = true;
-    controller.enableZoom = true;
-  }
-}
-
-
-function stopFollow() {
-  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-}
-
-async function loadFromServer(url) {
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Fehler beim Laden");
-    const text = await response.text();
-    originalKmlContent = text;
-    originalFileName = url.split('/').pop();
-    const lines = text.split(/\r?\n/);
-    fullCoords = []; let currentTime = null;
-    for (let line of lines) {
-      line = line.trim();
-      if (line.startsWith('<name>')) {
-        const [h,m,s] = line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
-        currentTime = h*3600 + m*60 + s;
+    const updated = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
+    const g1 = updated[0].height ?? 0;
+    const g2 = updated[1].height ?? 0;
+
+    const top1    = Cesium.Cartesian3.fromDegrees(p1.lon, p1.lat, p1.alt + ALT_OFFSET);
+    const top2    = Cesium.Cartesian3.fromDegrees(p2.lon, p2.lat, p2.alt + ALT_OFFSET);
+    const ground1 = Cesium.Cartesian3.fromDegrees(p1.lon, p1.lat, g1);
+    const ground2 = Cesium.Cartesian3.fromDegrees(p2.lon, p2.lat, g2);
+
+    const ent = viewer.entities.add({
+      polygon: {
+        hierarchy: new Cesium.PolygonHierarchy([top1, top2, ground2, ground1]),
+        material: Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(0.12),
+        perPositionHeight: true
       }
-      if (line.includes('<coordinates>')) {
-        const [lon, lat, alt] = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim().split(',').map(Number);
-        if (currentTime !== null) {
-          if (fullCoords.length > 0) {
-            const last = fullCoords[fullCoords.length - 1];
-            const steps = 10;
-            for (let i = 1; i < steps; i++) {
-              const t = i / steps;
-              fullCoords.push({
-                seconds: last.seconds + (currentTime - last.seconds) * t,
-                lon: last.lon + (lon - last.lon) * t,
-                lat: last.lat + (lat - last.lat) * t,
-                alt: last.alt + (alt - last.alt) * t
-              });
-            }
-          }
-          fullCoords.push({ seconds: currentTime, lon, lat, alt });
-        }
-      }
+    });
+    quadEntities.push(ent);
+
+    // Fade older quads
+    quadEntities.forEach((e, i) => {
+      const alpha = 0.04 + (i / quadEntities.length) * 0.22;
+      e.polygon.material = Cesium.Color.fromCssColorString('#4fa3ff').withAlpha(alpha);
+    });
+
+    if (quadEntities.length > MAX_QUADS) {
+      viewer.entities.remove(quadEntities.shift());
     }
-    if (fullCoords.length > 0) {
-      animationIndex = 0;
-      updateMovingPoint(fullCoords[0]);
-      createChart();
-    }
-  } catch (err) {
-    alert("Fehler beim Laden der Datei: " + err.message);
+  } catch (_) {}
+}
+
+// ═══════════════════════════════════════════════════════
+//  rAF-BASED ANIMATION (no setInterval = smooth!)
+// ═══════════════════════════════════════════════════════
+function rafLoop(timestamp) {
+  if (!isPlaying) return;
+
+  if (lastRafTime === null) lastRafTime = timestamp;
+  const wallDelta = (timestamp - lastRafTime) / 1000; // real seconds elapsed
+  lastRafTime = timestamp;
+
+  // How many simulated seconds to advance
+  secondsAccum += wallDelta * speedFactor;
+
+  // Advance animationIndex by simulated time
+  const startSec = fullCoords[animationIndex]?.seconds ?? 0;
+  let   targetSec = startSec + secondsAccum;
+
+  // Find next index matching targetSec
+  let newIdx = animationIndex;
+  while (newIdx < fullCoords.length - 1 && fullCoords[newIdx + 1].seconds <= targetSec) {
+    newIdx++;
   }
-}
 
-async function startAnimation() {
-  clearInterval(animationInterval);
-  animationInterval = setInterval(async () => {
-    if (animationIndex >= fullCoords.length - 1) {
-      clearInterval(animationInterval);
-      return;
-    }
-
-    const prevTime = fullCoords[animationIndex]?.seconds ?? 0;
-    animationIndex++;
-    const currentPoint = fullCoords[animationIndex];
-
-    await updateMovingPoint(currentPoint);
-
-    // Alle 3 Schritte Fläche zwischen Flugspur und Terrain erzeugen
-    if (animationIndex % 3 === 0 && animationIndex > 0) {
-      await createVerticalQuad(fullCoords[animationIndex - 1], currentPoint);
-    }
-    
-    
-
+  if (newIdx !== animationIndex) {
+    secondsAccum -= (fullCoords[newIdx].seconds - startSec);
+    updatePoint(newIdx);
     updateChartMarker();
-  }, 1000 / (speedFactor * 10));
-}
 
-document.getElementById('saveLocalBtn').onclick = () => {
-  if (!fullCoords || fullCoords.length === 0) {
-    alert("Keine Daten zum Speichern.");
+    // Add quad every ~5 real indices
+    if (newIdx % 5 === 0) maybeAddQuad(newIdx);
+  }
+
+  if (animationIndex >= fullCoords.length - 1) {
+    isPlaying = false;
+    document.getElementById('togglePlayBtn').textContent = '▶';
     return;
   }
 
-  let kml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  kml += `<kml xmlns="http://www.opengis.net/kml/2.2">\n`;
-  kml += `  <Document>\n`;
+  rafId = requestAnimationFrame(rafLoop);
+}
 
-  for (let i = 0; i < fullCoords.length; i++) {
-    const p = fullCoords[i];
-    // Nur Originalpunkte mit glatten Sekunden (keine Zwischenpunkte)
-    if (!Number.isInteger(p.seconds)) continue;
+function startAnimation() {
+  if (!fullCoords.length) return;
+  isPlaying    = true;
+  lastRafTime  = null;
+  secondsAccum = 0;
+  rafId = requestAnimationFrame(rafLoop);
+  document.getElementById('togglePlayBtn').textContent = '⏸';
+}
 
-    const sec = Math.floor(p.seconds);
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    const timestamp = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+function pauseAnimation() {
+  isPlaying = false;
+  cancelAnimationFrame(rafId);
+  document.getElementById('togglePlayBtn').textContent = '▶';
+}
 
-    kml += `    <Placemark>\n`;
-    kml += `      <name>${timestamp}</name>\n`;
-    kml += `      <Point>\n`;
-    kml += `        <coordinates>${p.lon},${p.lat},${p.alt}</coordinates>\n`;
-    kml += `      </Point>\n`;
-    kml += `    </Placemark>\n`;
-  }
-
-  kml += `  </Document>\n`;
-  kml += `</kml>`;
-
-  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = originalFileName?.replace('.kml', '_gekürzt.kml') || 'gekürzt.kml';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
-
-let draggingCut = null;
-
-document.getElementById("mainChart").addEventListener("touchstart", function (e) {
-  const touch = e.touches[0];
-  const chartRect = mainChart.canvas.getBoundingClientRect();
-  const x = touch.clientX - chartRect.left;
-
-  const startPixel = mainChart.scales.x.getPixelForValue(mainChart.options.plugins.annotation.annotations.cutStartLine.xMin);
-  const endPixel = mainChart.scales.x.getPixelForValue(mainChart.options.plugins.annotation.annotations.cutEndLine.xMin);
-
-  if (Math.abs(x - startPixel) < 20) {
-    draggingCut = "start";
-  } else if (Math.abs(x - endPixel) < 20) {
-    draggingCut = "end";
-  }
-});
-
-document.addEventListener("touchmove", function (e) {
-  if (!draggingCut || !mainChart) return;
-
-  const touch = e.touches[0];
-  const chartRect = mainChart.canvas.getBoundingClientRect();
-  const x = touch.clientX - chartRect.left;
-  const time = mainChart.scales.x.getValueForPixel(x);
-
-  if (draggingCut === "start") {
-    mainChart.options.plugins.annotation.annotations.cutStartLine.xMin = time;
-    mainChart.options.plugins.annotation.annotations.cutStartLine.xMax = time;
-  } else if (draggingCut === "end") {
-    mainChart.options.plugins.annotation.annotations.cutEndLine.xMin = time;
-    mainChart.options.plugins.annotation.annotations.cutEndLine.xMax = time;
-  }
-
-  mainChart.update('none');
-}, { passive: true });
-
-document.addEventListener("touchend", function () {
-  draggingCut = null;
-});
-
-function createChart() {
+// ═══════════════════════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════════════════════
+function buildChart() {
   const ctx = document.getElementById('mainChart').getContext('2d');
+
   const seconds = fullCoords.map(p => p.seconds);
-  const alt = fullCoords.map(p => p.alt);
-  const speeds = [0];
-  for (let i = 1; i < fullCoords.length; i++) {
-    const dx = fullCoords[i].lon - fullCoords[i - 1].lon;
-    const dy = fullCoords[i].lat - fullCoords[i - 1].lat;
-    const dist = Math.sqrt(dx*dx + dy*dy) * 111320;
-    const dt = fullCoords[i].seconds - fullCoords[i - 1].seconds;
-    speeds.push(dt > 0 ? (dist/dt)*3.6 : 0);
-  }
+  const alts    = fullCoords.map(p => p.alt);
+  const speeds  = fullCoords.map((p, i) => {
+    if (i === 0) return 0;
+    const prev = fullCoords[i - 1];
+    const dt   = p.seconds - prev.seconds;
+    if (dt <= 0) return 0;
+    const dx = (p.lon - prev.lon) * 111320 * Math.cos(p.lat * Math.PI / 180);
+    const dy = (p.lat - prev.lat) * 111320;
+    return (Math.sqrt(dx*dx + dy*dy) / dt) * 3.6;
+  });
 
   if (mainChart) mainChart.destroy();
+
   mainChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: seconds,
       datasets: [
-        { label: 'Höhe (m)', data: alt, borderColor: 'blue', yAxisID: 'y1', pointRadius: 0, tension: 0.2 },
-        { label: 'Geschwindigkeit (km/h)', data: speeds, borderColor: 'green', yAxisID: 'y2', pointRadius: 0, tension: 0.2 }
+        {
+          label: 'Höhe (m)', data: alts,
+          borderColor: '#4fa3ff', borderWidth: 1.5,
+          backgroundColor: 'rgba(79,163,255,0.08)',
+          fill: true, yAxisID: 'y1', pointRadius: 0, tension: 0.3
+        },
+        {
+          label: 'Speed (km/h)', data: speeds,
+          borderColor: '#00e5a0', borderWidth: 1.5,
+          backgroundColor: 'transparent',
+          fill: false, yAxisID: 'y2', pointRadius: 0, tension: 0.3
+        }
       ]
     },
     options: {
-      responsive: true,
+      responsive: true, maintainAspectRatio: false,
       animation: false,
       plugins: {
-  legend: { display: true },
-  annotation: {
-    annotations: {
-      currentLine: {
-        type: 'line',
-        xMin: seconds[0],
-        xMax: seconds[0],
-        borderColor: 'red',
-        borderWidth: 2,
-        label: {
-          display: true,
-          content: ctx => {
-            const sec = fullCoords[animationIndex]?.seconds ?? 0;
-            const h = Math.floor(sec / 3600);
-            const m = Math.floor((sec % 3600) / 60);
-            const s = Math.floor(sec % 60);
-            return h > 0
-              ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-              : `${m}:${s.toString().padStart(2, '0')}`;
-          },
-          backgroundColor: 'red',
-          color: 'white',
-          font: { weight: 'bold' },
-          position: 'start'
+        legend: {
+          labels: { color: '#7a90b0', font: { family: 'Rajdhani', size: 11 }, boxWidth: 12 }
+        },
+        annotation: {
+          annotations: {
+            cursor: {
+              type: 'line',
+              xMin: seconds[0], xMax: seconds[0],
+              borderColor: '#ff4f6a', borderWidth: 2,
+              label: {
+                display: true,
+                content: () => fmtTime(fullCoords[animationIndex]?.seconds ?? 0),
+                backgroundColor: '#ff4f6a',
+                color: '#fff',
+                font: { family: 'JetBrains Mono', size: 10 },
+                position: 'start', padding: 4
+              }
+            },
+            cutStart: {
+              type: 'line', xMin: seconds[0], xMax: seconds[0],
+              borderColor: '#4fa3ff', borderWidth: 2, display: false,
+              label: { display: true, content: 'Start', backgroundColor: '#4fa3ff', color: '#fff' }
+            },
+            cutEnd: {
+              type: 'line', xMin: seconds.at(-1), xMax: seconds.at(-1),
+              borderColor: '#00e5a0', borderWidth: 2, display: false,
+              label: { display: true, content: 'Ende', backgroundColor: '#00e5a0', color: '#fff' }
+            }
+          }
         }
       },
-      cutStartLine: {
-        type: 'line',
-        xMin: seconds[0],
-        xMax: seconds[0],
-        borderColor: 'blue',
-        borderWidth: 2,
-        display: false,
-        label: {
-          display: true,
-          content: 'Start',
-          backgroundColor: 'blue',
-          color: 'white'
-        },
-        draggable: true
-      },
-      cutEndLine: {
-        type: 'line',
-        xMin: seconds.at(-1),
-        xMax: seconds.at(-1),
-        borderColor: 'green',
-        borderWidth: 2,
-        display: false,
-        label: {
-          display: true,
-          content: 'Ende',
-          backgroundColor: 'green',
-          color: 'white'
-        },
-        draggable: true
-      }
-    }
-  }
-},
-      onClick: async (event) => {
-        const points = mainChart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, false);
-        if (points.length > 0) {
-          const index = points[0].index;
-          animationIndex = index;
-          await updateMovingPoint(fullCoords[animationIndex]);
+      onClick: (event) => {
+        const pts = mainChart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, false);
+        if (pts.length) {
+          pauseAnimation();
+          updatePoint(pts[0].index);
           updateChartMarker();
         }
       },
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: 'Zeit' },
           ticks: {
-            callback: function(value) {
-              const h = Math.floor(value / 3600);
-              const m = Math.floor((value % 3600) / 60);
-              const s = Math.floor(value % 60);
-              return h > 0
-                ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-                : `${m}:${s.toString().padStart(2, '0')}`;
-            }
-          }
+            color: '#7a90b0',
+            font: { family: 'JetBrains Mono', size: 9 },
+            callback: v => fmtTime(v),
+            maxTicksLimit: 8
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' }
         },
-        y1: { type: 'linear', position: 'left', title: { display: true, text: 'Höhe (m)' } },
-        y2: { type: 'linear', position: 'right', title: { display: true, text: 'km/h' }, grid: { drawOnChartArea: false } }
+        y1: {
+          type: 'linear', position: 'left',
+          title: { display: true, text: 'Höhe (m)', color: '#4fa3ff', font: { size: 10 } },
+          ticks: { color: '#4fa3ff', font: { size: 9 } },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y2: {
+          type: 'linear', position: 'right',
+          title: { display: true, text: 'km/h', color: '#00e5a0', font: { size: 10 } },
+          ticks: { color: '#00e5a0', font: { size: 9 } },
+          grid: { drawOnChartArea: false }
+        }
       }
     }
   });
 }
 
 function updateChartMarker() {
-  if (!mainChart) return;
-  const seconds = fullCoords[animationIndex]?.seconds ?? 0;
-  const annotation = mainChart.options.plugins.annotation.annotations.currentLine;
-  annotation.xMin = annotation.xMax = seconds;
+  if (!mainChart || !fullCoords.length) return;
+  const s = fullCoords[animationIndex]?.seconds ?? 0;
+  const ann = mainChart.options.plugins.annotation.annotations.cursor;
+  ann.xMin = ann.xMax = s;
   mainChart.update('none');
 }
 
+// Touch drag on chart for cut markers
+let draggingCut = null;
+document.getElementById('mainChart').addEventListener('touchstart', e => {
+  if (!cutModeActive || !mainChart) return;
+  const touch = e.touches[0];
+  const rect  = mainChart.canvas.getBoundingClientRect();
+  const x     = touch.clientX - rect.left;
+  const ann   = mainChart.options.plugins.annotation.annotations;
+  const startPx = mainChart.scales.x.getPixelForValue(ann.cutStart.xMin);
+  const endPx   = mainChart.scales.x.getPixelForValue(ann.cutEnd.xMin);
+  draggingCut = Math.abs(x - startPx) < 24 ? 'start' : Math.abs(x - endPx) < 24 ? 'end' : null;
+}, { passive: true });
 
+document.addEventListener('touchmove', e => {
+  if (!draggingCut || !mainChart) return;
+  const touch = e.touches[0];
+  const rect  = mainChart.canvas.getBoundingClientRect();
+  const time  = mainChart.scales.x.getValueForPixel(touch.clientX - rect.left);
+  const key   = draggingCut === 'start' ? 'cutStart' : 'cutEnd';
+  mainChart.options.plugins.annotation.annotations[key].xMin = time;
+  mainChart.options.plugins.annotation.annotations[key].xMax = time;
+  mainChart.update('none');
+}, { passive: true });
+
+document.addEventListener('touchend', () => { draggingCut = null; });
+
+// ═══════════════════════════════════════════════════════
+//  CUT MODE
+// ═══════════════════════════════════════════════════════
+function activateCutMode() {
+  if (!mainChart || !fullCoords.length) return;
+  cutModeActive = true;
+  document.getElementById('cutModeBtn').classList.add('active');
+  const ann = mainChart.options.plugins.annotation.annotations;
+  const s   = fullCoords.map(p => p.seconds);
+  ann.cutStart.display = ann.cutEnd.display = true;
+  ann.cutStart.xMin = ann.cutStart.xMax = s[Math.floor(s.length * 0.1)];
+  ann.cutEnd.xMin   = ann.cutEnd.xMax   = s[Math.floor(s.length * 0.9)];
+  mainChart.update('none');
+}
+
+function applyCut() {
+  if (!cutModeActive || !mainChart) return;
+  const ann    = mainChart.options.plugins.annotation.annotations;
+  const tStart = ann.cutStart.xMin;
+  const tEnd   = ann.cutEnd.xMin;
+  fullCoords   = fullCoords.filter(p => p.seconds >= tStart && p.seconds <= tEnd);
+  if (!fullCoords.length) { alert('Kein Bereich übrig.'); return; }
+  startAltitude  = null;
+  animationIndex = 0;
+  cutModeActive  = false;
+  document.getElementById('cutModeBtn').classList.remove('active');
+  buildChart();
+  updatePoint(0);
+  document.getElementById('cutUploadOverlay').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════
+//  SUPABASE
+// ═══════════════════════════════════════════════════════
+async function listSupabaseFiles() {
+  const list = document.getElementById('serverFileList');
+  list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;padding:8px">Lade…</p>';
+  const { data, error } = await supabase.storage.from('flugspuren').list();
+  if (error) { list.innerHTML = '<p style="color:var(--danger)">Fehler: ' + error.message + '</p>'; return; }
+
+  list.innerHTML = '';
+  (data || []).forEach(file => {
+    const row = document.createElement('div');
+    row.className = 'server-file-row';
+
+    const name = document.createElement('span');
+    name.className   = 'server-file-name';
+    name.textContent = file.name;
+    name.onclick     = async () => {
+      document.getElementById('serverFileOverlay').classList.remove('open');
+      const { data: urlData } = await supabase.storage.from('flugspuren').createSignedUrl(file.name, 3600);
+      if (urlData?.signedUrl) loadFromServer(urlData.signedUrl);
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'server-file-action';
+    delBtn.textContent = '🗑';
+    delBtn.title       = 'Löschen';
+    delBtn.onclick     = async () => {
+      if (!confirm('Datei "' + file.name + '" löschen?')) return;
+      const { error } = await supabase.storage.from('flugspuren').remove([file.name]);
+      if (error) alert('Fehler: ' + error.message);
+      else listSupabaseFiles();
+    };
+
+    row.appendChild(name);
+    row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+  if (!data?.length) list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;padding:8px">Keine Dateien gefunden.</p>';
+}
+
+async function uploadCurrent(filename) {
+  if (!originalKmlContent) return;
+  const blob = new Blob([buildKml()], { type: 'application/vnd.google-earth.kml+xml' });
+  const file = new File([blob], filename);
+  const { error } = await supabase.storage.from('flugspuren').upload(filename, file, { upsert: true });
+  if (error) alert('Upload fehlgeschlagen: ' + error.message);
+  else alert('Gespeichert: ' + filename);
+}
+
+// ═══════════════════════════════════════════════════════
+//  KML EXPORT
+// ═══════════════════════════════════════════════════════
+function buildKml() {
+  let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n`;
+  for (const p of fullCoords) {
+    if (!Number.isInteger(p.seconds)) continue;
+    kml += `    <Placemark>\n      <name>${fmtTime(p.seconds)}</name>\n      <Point>\n        <coordinates>${p.lon},${p.lat},${p.alt}</coordinates>\n      </Point>\n    </Placemark>\n`;
+  }
+  return kml + `  </Document>\n</kml>`;
+}
+
+function saveLocal() {
+  if (!fullCoords.length) { alert('Keine Daten.'); return; }
+  const blob = new Blob([buildKml()], { type: 'application/vnd.google-earth.kml+xml' });
+  const a    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: (originalFileName || 'flugroute').replace('.kml', '_export.kml') });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHART RESIZE (drag handle)
+// ═══════════════════════════════════════════════════════
+const chartPanel = document.getElementById('chartPanel');
+const handle     = document.getElementById('chartHandle');
+let resizing     = false, resizeStartY = 0, resizeStartH = 0;
+
+handle.addEventListener('pointerdown', e => {
+  resizing = true; resizeStartY = e.clientY; resizeStartH = chartPanel.offsetHeight;
+  handle.setPointerCapture(e.pointerId);
+});
+handle.addEventListener('pointermove', e => {
+  if (!resizing) return;
+  const delta  = resizeStartY - e.clientY;
+  const newH   = Math.max(80, Math.min(window.innerHeight * 0.7, resizeStartH + delta));
+  chartPanel.style.height = newH + 'px';
+});
+handle.addEventListener('pointerup', () => { resizing = false; });
+
+// ═══════════════════════════════════════════════════════
+//  BUTTON HANDLERS
+// ═══════════════════════════════════════════════════════
+document.getElementById('togglePlayBtn').onclick = () => {
+  if (!fullCoords.length) return;
+  if (isPlaying) pauseAnimation(); else startAnimation();
+};
+
+document.getElementById('trailSlider').oninput = e => { trailSeconds = parseInt(e.target.value); };
 
 document.getElementById('switchView').onclick = () => {
   is3D = !is3D;
-  viewer.scene.mode = is3D ? Cesium.SceneMode.SCENE2D : Cesium.SceneMode.SCENE3D;
+  scene.mode = is3D ? Cesium.SceneMode.SCENE2D : Cesium.SceneMode.SCENE3D;
   document.getElementById('switchView').textContent = is3D ? '3D' : '2D';
-  if (is3D) Cesium.createWorldTerrainAsync().then(t => viewer.terrainProvider = t);
-apply2DInteractionControl();
+  if (!is3D) Cesium.createWorldTerrainAsync().then(t => viewer.terrainProvider = t);
+  if (!followEnabled) {
+    controller.enableTranslate = true;
+  } else {
+    controller.enableTranslate = !is3D;
+  }
 };
 
 document.getElementById('openFile').onclick = () => {
-  document.getElementById('fileOptionsDialog').style.display = 'block';
+  document.getElementById('fileOptionsOverlay').classList.add('open');
+};
+
+document.getElementById('fileOptionsCancel').onclick = () => {
+  document.getElementById('fileOptionsOverlay').classList.remove('open');
 };
 
 document.getElementById('loadLocalBtn').onclick = () => {
-  document.getElementById('fileOptionsDialog').style.display = 'none';
+  document.getElementById('fileOptionsOverlay').classList.remove('open');
   setTimeout(() => {
-    const fileInput = document.getElementById('fileInput');
-    fileInput.value = '';
-    fileInput.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    const fi = document.getElementById('fileInput');
+    fi.value = '';
+    fi.click();
   }, 100);
 };
 
 document.getElementById('loadServerBtn').onclick = () => {
-  document.getElementById('fileOptionsDialog').style.display = 'none';
-  document.getElementById('serverFileDialog').style.display = 'block';
-  listSupabaseFiles(); // zeigt Dateien und Löschbutton
+  document.getElementById('fileOptionsOverlay').classList.remove('open');
+  document.getElementById('serverFileOverlay').classList.add('open');
+  listSupabaseFiles();
 };
 
+document.getElementById('serverFileCancel').onclick = () => {
+  document.getElementById('serverFileOverlay').classList.remove('open');
+};
 
-document.getElementById('uploadServerBtn').onclick = async () => {
-  document.getElementById('fileOptionsDialog').style.display = 'none';
-
+document.getElementById('uploadServerBtn').onclick = () => {
+  document.getElementById('fileOptionsOverlay').classList.remove('open');
   const input = document.createElement('input');
-  input.type = 'file';
+  input.type   = 'file';
   input.accept = '.kml';
-
-  input.onchange = async (event) => {
-    const file = event.target.files[0];
+  input.onchange = async e => {
+    const file = e.target.files[0];
     if (!file) return;
-
-    const customName = prompt("Dateiname für den Upload:", file.name);
-    if (!customName) return;
-
-    const renamedFile = new File([file], customName, { type: file.type });
-
-    const { error } = await supabase.storage
-      .from('flugspuren')
-      .upload(customName, renamedFile, { upsert: true });
-
-    if (error) {
-      alert('Fehler beim Hochladen: ' + error.message);
-    } else {
-      alert('Datei erfolgreich hochgeladen: ' + customName);
-      listSupabaseFiles(); // aktualisiere die Liste
-    }
+    const name = prompt('Dateiname:', file.name) || file.name;
+    showLoading(true);
+    const { error } = await supabase.storage.from('flugspuren').upload(name, new File([file], name, { type: file.type }), { upsert: true });
+    showLoading(false);
+    if (error) alert('Fehler: ' + error.message);
+    else alert('Hochgeladen: ' + name);
   };
-
   input.click();
 };
 
+document.getElementById('saveLocalBtn').onclick = () => {
+  document.getElementById('fileOptionsOverlay').classList.remove('open');
+  saveLocal();
+};
 
-document.getElementById('fileInput').addEventListener('change', function(event) {
-  const file = event.target.files[0]; if (!file) return;
-  originalFileName = file.name;
-  const reader = new FileReader(); reader.onload = function(e) {
-  originalKmlContent = e.target.result;
-    const lines = e.target.result.split(/\r?\n/);
-    fullCoords = []; let currentTime = null;
-    for (let line of lines) {
-      line = line.trim();
-      if (line.startsWith('<name>')) {
-        const [h,m,s] = line.replace(/<\/?name>/g,'').trim().split(':').map(Number);
-        currentTime = h*3600 + m*60 + s;
-      }
- 
- 
- if (line.includes('<coordinates>')) {
-  const [lon, lat, alt] = line.substring(line.indexOf('>')+1, line.indexOf('</coordinates>')).trim().split(',').map(Number);
-  if (currentTime !== null) {
-    if (fullCoords.length > 0) {
-      const last = fullCoords[fullCoords.length - 1];
-      const steps = 10; // Anzahl der Zwischenpunkte
-      for (let i = 1; i < steps; i++) {
-        const t = i / steps;
-        fullCoords.push({
-          seconds: last.seconds + (currentTime - last.seconds) * t,
-          lon: last.lon + (lon - last.lon) * t,
-          lat: last.lat + (lat - last.lat) * t,
-          alt: last.alt + (alt - last.alt) * t
-        });
-      }
-    }
-    fullCoords.push({ seconds: currentTime, lon, lat, alt });
-  }
-}
- 
- 
- 
-    }
-    if (fullCoords.length > 0) {
-      animationIndex = 0;
-      updateMovingPoint(fullCoords[0]);
-      createChart();
-    } 
-  
-  
-    };
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadKmlText(ev.target.result, file.name);
   reader.readAsText(file);
 });
 
-let isPlaying = false;
-document.getElementById('togglePlayBtn').onclick = async () => {
-  if (!isPlaying) {
-    await startAnimation();
-    document.getElementById('togglePlayBtn').innerHTML = '&#10073;&#10073;'; // ❚❚ Pause
-  } else {
-    clearInterval(animationInterval);
-    document.getElementById('togglePlayBtn').innerHTML = '&#9654;'; // ▶ Play
-  }
-  isPlaying = !isPlaying;
-};
-document.getElementById('trailSlider').oninput = e => trailSeconds = parseInt(e.target.value);
-
 document.getElementById('toggleFollow').onclick = () => {
   followEnabled = !followEnabled;
-  document.getElementById('toggleFollow').innerHTML = followEnabled ? '&#128065;' : '&#10060;'; // 👁 oder ❌
+  document.getElementById('toggleFollow').classList.toggle('active', followEnabled);
+  document.getElementById('toggleFollow').textContent = followEnabled ? '👁' : '👁';
   if (!followEnabled) stopFollow();
-  else updateMovingPoint(fullCoords[animationIndex]);
-  updateChartMarker();
-  apply2DInteractionControl();
+  else if (fullCoords.length) updatePoint(animationIndex);
 };
-const speedValues = [1, 2, 4, 8];
-let speedIndex = 0;
 
-document.getElementById('speedBtn').onclick = async () => {
-  speedIndex = (speedIndex + 1) % speedValues.length;
-  speedFactor = speedValues[speedIndex];
-  document.getElementById('speedBtn').textContent = speedFactor + 'x';
-
-  if (animationInterval) {
-    clearInterval(animationInterval);
-    await startAnimation();
-  }
+const speedValues = [1, 2, 4, 8, 16];
+let speedIdx = 0;
+document.getElementById('speedBtn').onclick = () => {
+  speedIdx = (speedIdx + 1) % speedValues.length;
+  speedFactor = speedValues[speedIdx];
+  document.getElementById('speedBtn').textContent = speedFactor + '×';
 };
+
 document.getElementById('fullscreenBtn').onclick = () => {
-  const elem = document.documentElement; // oder z. B. document.body
-  if (!document.fullscreenElement) {
-    elem.requestFullscreen().catch(err => alert(`Fehler: ${err.message}`));
-  } else {
-    document.exitFullscreen();
-  }
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+  else document.exitFullscreen();
 };
 
-async function uploadToSupabase(file) {
-  const fileName = file.name;  // Originalname behalten
-
-  const { error } = await supabase.storage
-    .from('flugspuren')
-    .upload(fileName, file, { upsert: true });  // Datei ggf. überschreiben
-
-  if (error) {
-    alert('Upload fehlgeschlagen: ' + error.message);
-  } else {
-    alert('Upload erfolgreich: ' + fileName);
-    listSupabaseFiles();  // Liste nach Upload neu laden
-  }
-}
-
-
-  
-async function listSupabaseFiles() {
-  const listContainer = document.getElementById('serverFileList');
-  const { data, error } = await supabase.storage.from('flugspuren').list();
-
-  if (error) {
-    listContainer.innerHTML = 'Fehler beim Abrufen der Dateien.';
-    return;
-  }
-
-  listContainer.innerHTML = '';
-  data.forEach(file => {
-    const btn = document.createElement('button');
-    btn.innerHTML = `
-      <span style="flex: 1;">${file.name}</span>
-      <button class="rename">✏️</button>
-      <button class="delete">🗑️</button>
-    `;
-    btn.onclick = async (e) => {
-      if (e.target.classList.contains('delete')) {
-        if (confirm(`Datei "${file.name}" wirklich löschen?`)) {
-          deleteSupabaseFile(file.name);
-        }
-        return;
-      }
-
-      if (e.target.classList.contains('rename')) {
-        const pass = prompt("Passwort zum Umbenennen?");
-        if (pass !== "2309") {
-          alert("Falsches Passwort.");
-          return;
-        }
-
-        const newName = prompt("Neuer Dateiname (inkl. .kml):", file.name);
-        if (newName && newName !== file.name) {
-          const { data, error: downloadErr } = await supabase.storage.from('flugspuren').download(file.name);
-          if (downloadErr) {
-            alert("Fehler beim Herunterladen: " + downloadErr.message);
-            return;
-          }
-
-          const { error: uploadErr } = await supabase.storage.from('flugspuren').upload(newName, data, { upsert: true });
-          if (uploadErr) {
-            alert("Fehler beim Hochladen: " + uploadErr.message);
-            return;
-          }
-
-          const { error: deleteErr } = await supabase.storage.from('flugspuren').remove([file.name]);
-          if (deleteErr) {
-            alert("Fehler beim Löschen: " + deleteErr.message);
-            return;
-          }
-
-          alert("Datei umbenannt.");
-          listSupabaseFiles();
-        }
-        return;
-      }
-
-      // Standardverhalten: Datei auswählen
-      document.getElementById('serverFileDialog').style.display = 'none';
-      downloadFromSupabase(file.name);
-    };
-    listContainer.appendChild(btn);
-  });
-}
-
-async function deleteSupabaseFile(filename) {
-  const pass = prompt("Passwort zum Löschen?");
-  if (pass !== "2309") {
-    alert("Falsches Passwort.");
-    return;
-  }
-
-  const { error } = await supabase.storage.from('flugspuren').remove([filename]);
-  if (error) {
-    alert('Fehler beim Löschen: ' + error.message);
-  } else {
-    alert('Datei gelöscht.');
-    await listSupabaseFiles();
-  }
-}async function downloadFromSupabase(filename) {
-  const { data, error } = await supabase.storage.from('flugspuren').download(filename);
-  if (error) {
-    alert('Download-Fehler: ' + error.message);
-    return;
-  }
-
-  const text = await data.text();
-  originalKmlContent = text;
-  originalFileName = filename;
-
-  const lines = text.split(/\r?\n/);
-  fullCoords = [];
-  let currentTime = null;
-
-  for (let line of lines) {
-    line = line.trim();
-    if (line.startsWith('<name>')) {
-      const [h, m, s] = line.replace(/<\/?name>/g, '').trim().split(':').map(Number);
-      currentTime = h * 3600 + m * 60 + s;
-    }
-    if (line.includes('<coordinates>')) {
-      const [lon, lat, alt] = line.substring(line.indexOf('>') + 1, line.indexOf('</coordinates>')).trim().split(',').map(Number);
-      if (currentTime !== null) {
-        if (fullCoords.length > 0) {
-          const last = fullCoords[fullCoords.length - 1];
-          const steps = 10;
-          for (let i = 1; i < steps; i++) {
-            const t = i / steps;
-            fullCoords.push({
-              seconds: last.seconds + (currentTime - last.seconds) * t,
-              lon: last.lon + (lon - last.lon) * t,
-              lat: last.lat + (lat - last.lat) * t,
-              alt: last.alt + (alt - last.alt) * t
-            });
-          }
-        }
-        fullCoords.push({ seconds: currentTime, lon, lat, alt });
-      }
-    }
-  }
-
-  if (fullCoords.length > 0) {
-    animationIndex = 0;
-    updateMovingPoint(fullCoords[0]);
-    createChart();
-  }
-}
-
-let gpsEntity = null;
-
-if (navigator.geolocation) {
-  navigator.geolocation.watchPosition(
-    async pos => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-
-      // Bodenhöhe abfragen
-      const carto = Cesium.Cartographic.fromDegrees(lon, lat);
-      const [updated] = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [carto]);
-      const groundHeight = updated?.height ?? 0;
-
-      const position = Cesium.Cartesian3.fromDegrees(lon, lat, groundHeight + 3);
-
-      // Alten Punkt entfernen
-      if (gpsEntity) viewer.entities.remove(gpsEntity);
-
-      // Neuen Punkt setzen
-      gpsEntity = viewer.entities.add({
-        position: position,
-        point: {
-          pixelSize: 20,
-          color: Cesium.Color.RED,
-        }
-      });
-    },
-    err => console.warn("GPS-Fehler:", err.message),
-    { enableHighAccuracy: true, maximumAge: 2000, timeout: 5000 }
-  );
-} else {
-  console.warn("GPS wird nicht unterstützt.");
-}
-
-const chartContainer = document.getElementById("chartContainer");
-const resizeHandle = document.getElementById("chartResizeHandle");
-
-let startY = 0;
-let startHeight = 0;
-let isResizing = false;
-
-resizeHandle.addEventListener("touchstart", (e) => {
-  startY = e.touches[0].clientY;
-  startHeight = chartContainer.offsetHeight;
-  isResizing = true;
-  e.preventDefault();
-});
-
-window.addEventListener("touchmove", (e) => {
-  if (!isResizing) return;
-  const currentY = e.touches[0].clientY;
-  const deltaY = startY - currentY;
-  const newHeight = Math.min(window.innerHeight * 0.9, Math.max(50, startHeight + deltaY));
-  chartContainer.style.height = newHeight + "px";
-});
-
-window.addEventListener("touchend", () => {
-  isResizing = false;
-  if (mainChart) {
-  mainChart.resize();
-}
-});
-
-function activateCutMode() {
-  const ann = mainChart.options.plugins.annotation.annotations;
-  ann.cutStartLine.display = true;
-  ann.cutEndLine.display = true;
-  mainChart.update();
-}
-
-function applyCut() {
-  const ann = mainChart.options.plugins.annotation.annotations;
-  const start = ann.cutStartLine.xMin;
-  const end = ann.cutEndLine.xMin;
-
-  if (start >= end) {
-    alert("Startzeit muss kleiner als Endzeit sein.");
-    return;
-  }
-
-  const newCoords = fullCoords.filter(p => p.seconds >= start && p.seconds <= end);
-  if (newCoords.length === 0) {
-    alert("Kein gültiger Bereich ausgewählt.");
-    return;
-  }
-
-  // Nur die Originalpunkte übernehmen (also keine Interpolation!)
-  fullCoords = newCoords.filter((p, i) => i === 0 || p.seconds !== fullCoords[i - 1]?.seconds);
-
-  animationIndex = 0;
-  updateMovingPoint(fullCoords[0]);
-  createChart();
-
-  // Dialog zum Server-Upload anzeigen
-  document.getElementById('cutUploadDialog').style.display = 'block';
-}
-
-document.getElementById('cutCancelBtn').onclick = () => {
-  document.getElementById('cutUploadDialog').style.display = 'none';
+document.getElementById('cutModeBtn').onclick = () => {
+  if (!cutModeActive) activateCutMode();
+  else applyCut();
 };
 
-async function uploadCutToServer() {
-  if (!fullCoords.length) {
-    alert("Keine zugeschnittene Datei vorhanden.");
-    return;
-    
-  }
-  
+document.getElementById('cutUploadYes').onclick = async () => {
+  document.getElementById('cutUploadOverlay').classList.remove('open');
+  const name = prompt('Dateiname:', (originalFileName || 'cut').replace('.kml', '_geschnitten.kml'));
+  if (name) await uploadCurrent(name);
+};
+document.getElementById('cutUploadNo').onclick = () => {
+  document.getElementById('cutUploadOverlay').classList.remove('open');
+  saveLocal();
+};
 
-  const defaultName = originalFileName?.replace(/\.kml$/i, '_cut.kml') || 'zugeschnitten.kml';
-  const customName = prompt("Dateiname für den Upload (inkl. .kml):", defaultName);
-  if (!customName) return;
-
-  let kml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  kml += `<kml xmlns="http://www.opengis.net/kml/2.2">\n`;
-  kml += `  <Document>\n`;
-
-  for (let p of fullCoords) {
-    if (!Number.isInteger(p.seconds)) continue;
-
-    const h = Math.floor(p.seconds / 3600);
-    const m = Math.floor((p.seconds % 3600) / 60);
-    const s = Math.floor(p.seconds % 60);
-    const time = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-
-    kml += `    <Placemark>\n`;
-    kml += `      <name>${time}</name>\n`;
-    kml += `      <Point>\n`;
-    kml += `        <coordinates>${p.lon},${p.lat},${p.alt}</coordinates>\n`;
-    kml += `      </Point>\n`;
-    kml += `    </Placemark>\n`;
-  }
-
-  kml += `  </Document>\n</kml>`;
-
-  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-
-  const { error } = await supabase.storage
-    .from('flugspuren')
-    .upload(customName, blob, { upsert: true });
-
-  if (error) {
-    alert("Upload-Fehler: " + error.message);
-  } else {
-    alert("Zugeschnittene Datei erfolgreich hochgeladen.");
-    document.getElementById('cutUploadDialog').style.display = 'none';
-    listSupabaseFiles();
-  }
+// ═══════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════
+function fmtTime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  return h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${m}:${String(s).padStart(2,'0')}`;
 }
 
-</script></body></html>
+function showLoading(on) {
+  const bar = document.getElementById('loadingBar');
+  bar.style.display = on ? 'block' : 'none';
+  bar.style.width   = on ? '70%' : '100%';
+  if (!on) setTimeout(() => { bar.style.display = 'none'; }, 300);
+}
+</script>
+</body>
+</html>
