@@ -386,26 +386,26 @@ scene.globe.enableLighting=false;
 scene.globe.maximumScreenSpaceError=3;
 
 // ── FOCUSED TILE LOADING ──
-// Strategie: maximumScreenSpaceError (SSE) dynamisch basierend auf Kameraabstand
-// zur aktuellen Falcon-Position anpassen.
-// Nah = niedriger SSE (feine Tiles), weit weg = hoher SSE (kaum Tiles geladen).
-// Kein cartographicLimitRectangle – das blockiert das Rendering komplett.
+// cartographicLimitRectangle begrenzt welche Tiles Cesium überhaupt lädt.
+// Die Box wird um die aktuelle Falcon-Position zentriert und wandert mit.
+// Kamera-Offset wird berücksichtigt damit die Box groß genug für Follow-Modus ist.
 
 let focusLon = 0, focusLat = 0, focusActive = false;
-const SSE_NEAR = 2;   // hohe Detailtiefe direkt am Falcon
-const SSE_FAR  = 48;  // minimale Tiles weit weg
 
 scene.preUpdate.addEventListener(() => {
   if (!focusActive) return;
-  const camCarto = camera.positionCartographic;
-  if (!camCarto) return;
-  const dLon = Cesium.Math.toDegrees(camCarto.longitude) - focusLon;
-  const dLat = Cesium.Math.toDegrees(camCarto.latitude)  - focusLat;
-  const distKm = Math.sqrt(dLon*dLon + dLat*dLat) * 111.0;
-  const focusKm = window._focusRadiusKm || 15;
-  // Smooth ramp: within focusKm = near quality, beyond = far quality
-  const t = Math.min(Math.max((distKm - 0.5) / Math.max(focusKm, 1), 0), 1);
-  scene.globe.maximumScreenSpaceError = SSE_NEAR + t * (SSE_FAR - SSE_NEAR);
+  const km = window._focusRadiusKm || 1;
+  // 1 Grad Breite ≈ 111 km, 1 Grad Länge ≈ 111*cos(lat) km
+  const dLat = km / 111.0;
+  const dLon = km / (111.0 * Math.cos(Cesium.Math.toRadians(focusLat)));
+  // Extra-Puffer für Kamera-Offset hinter dem Falcon (Hinter-Ansicht ~280m)
+  const buf = 0.005;
+  scene.globe.cartographicLimitRectangle = new Cesium.Rectangle(
+    Cesium.Math.toRadians(focusLon - dLon - buf),
+    Cesium.Math.toRadians(focusLat - dLat - buf),
+    Cesium.Math.toRadians(focusLon + dLon + buf),
+    Cesium.Math.toRadians(focusLat + dLat + buf)
+  );
 });
 
 function setFocusPoint(lon, lat) {
@@ -413,6 +413,7 @@ function setFocusPoint(lon, lat) {
 }
 function clearFocusPoint() {
   focusActive = false;
+  scene.globe.cartographicLimitRectangle = Cesium.Rectangle.MAX_VALUE;
   scene.globe.maximumScreenSpaceError = 4;
 }
 
