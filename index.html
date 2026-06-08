@@ -300,9 +300,9 @@ html,body{width:100%;height:100%;background:var(--c0);font-family:var(--body);co
 
 <!-- CONTROLS -->
 <div id="controls">
-  <input type="range" id="trailSlider" min="10" max="400" value="150" title="Spurlänge">
-  <input type="range" id="radiusSlider" min="1" max="50" value="15" title="Lade-Radius (km)" style="-webkit-appearance:slider-vertical;appearance:slider-vertical;width:clamp(38px,9.5vw,50px);height:70px;cursor:pointer;accent-color:var(--orange);opacity:.6;align-self:center" oninput="updateFocusRadius(this.value);document.getElementById('radiusLbl').textContent=this.value+'km'">
-  <div id="radiusLbl" style="font-family:var(--font);font-size:8px;color:var(--orange);text-align:center;opacity:.7;letter-spacing:.05em">15km</div>
+  <input type="range" id="trailSlider" min="10" max="1800" value="300" title="Spurlänge (5 min Standard)">
+  <input type="range" id="radiusSlider" min="1" max="50" value="20" title="Lade-Radius (km)" style="-webkit-appearance:slider-vertical;appearance:slider-vertical;width:clamp(38px,9.5vw,50px);height:70px;cursor:pointer;accent-color:var(--orange);opacity:.6;align-self:center" oninput="updateFocusRadius(this.value);document.getElementById('radiusLbl').textContent=this.value+'km'" value="20">
+  <div id="radiusLbl" style="font-family:var(--font);font-size:8px;color:var(--orange);text-align:center;opacity:.7;letter-spacing:.05em">20km</div>
   <button class="btn" id="btn3d" title="2D/3D">2D</button>
   <button class="btn" id="btnCam" title="Kamera (C)">🎥</button>
   <button class="btn" id="btnFile" title="Datei öffnen">📁</button>
@@ -420,7 +420,7 @@ function clearFocusPoint() {
 // STATE
 // ═══════════════════════════════════════════════════════════
 const ALT=50;
-let coords=[], idx=0, trailLen=150;
+let coords=[], idx=0, trailLen=300;
 let playing=false, speed=1, followOn=true, camMode=0, is3D=false;
 let startAlt=null, origName=null, origKml=null, cutActive=false;
 let userMoved=false, moveTimer=null;
@@ -942,7 +942,7 @@ function showKeyHint(){const h=document.getElementById('keyHint');h.classList.ad
 function updateFocusRadius(km){
   window._focusRadiusKm = parseFloat(km);
 }
-window._focusRadiusKm = 15; // default 15 km
+window._focusRadiusKm = 20; // default 20 km
 
 // ── INIT ──
 navigator.geolocation.getCurrentPosition(p=>{
