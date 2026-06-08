@@ -383,7 +383,9 @@ scene.fog.enabled=false;
 scene.globe.showGroundAtmosphere=false;
 scene.highDynamicRange=false;
 scene.globe.enableLighting=false;
-scene.globe.maximumScreenSpaceError=3;
+scene.globe.maximumScreenSpaceError=2;
+// Tile cache klein halten – nicht mehr als nötig im Speicher
+scene.globe.tileCacheSize=50;
 
 // ── FOCUSED TILE LOADING ──
 // cartographicLimitRectangle begrenzt welche Tiles Cesium überhaupt lädt.
@@ -392,20 +394,25 @@ scene.globe.maximumScreenSpaceError=3;
 
 let focusLon = 0, focusLat = 0, focusActive = false;
 
+// Throttle: nur alle 60 Frames die Box neu setzen (spart CPU)
+let _focusFrame = 0;
 scene.preUpdate.addEventListener(() => {
   if (!focusActive) return;
+  if (++_focusFrame % 60 !== 0 && _focusFrame > 1) return;
   const km = window._focusRadiusKm || 1;
-  // 1 Grad Breite ≈ 111 km, 1 Grad Länge ≈ 111*cos(lat) km
   const dLat = km / 111.0;
-  const dLon = km / (111.0 * Math.cos(Cesium.Math.toRadians(focusLat)));
-  // Extra-Puffer für Kamera-Offset hinter dem Falcon (Hinter-Ansicht ~280m)
-  const buf = 0.005;
-  scene.globe.cartographicLimitRectangle = new Cesium.Rectangle(
+  const dLon = km / (111.0 * Math.cos(Cesium.Math.toRadians(focusLat || 0.0001)));
+  // Puffer für Kamera-Offset (Follow-Modus: Kamera ~300m hinter Falcon)
+  const buf = dLat * 0.5;
+  const rect = new Cesium.Rectangle(
     Cesium.Math.toRadians(focusLon - dLon - buf),
     Cesium.Math.toRadians(focusLat - dLat - buf),
     Cesium.Math.toRadians(focusLon + dLon + buf),
     Cesium.Math.toRadians(focusLat + dLat + buf)
   );
+  scene.globe.cartographicLimitRectangle = rect;
+  // Auch Imagery Layer SSE hochsetzen damit keine fernen Tiles geladen werden
+  scene.globe.maximumScreenSpaceError = 2;
 });
 
 function setFocusPoint(lon, lat) {
