@@ -948,7 +948,12 @@ window._focusRadiusKm = 1; // default 2 km
 // ── INIT ──
 navigator.geolocation.getCurrentPosition(p=>{
   camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(p.coords.longitude,p.coords.latitude,1500),duration:4});
-},()=>{});
+  // Fokus sofort auf GPS-Position setzen
+  setFocusPoint(p.coords.longitude, p.coords.latitude);
+},()=>{
+  // Kein GPS – Fokus trotzdem aktivieren mit Standardposition (Mitte Europa)
+  setFocusPoint(10.0, 51.0);
+});
 document.getElementById('followTag').classList.toggle('show',followOn);
 
 // Dismiss splash after cesium loads
